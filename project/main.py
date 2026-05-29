@@ -10,38 +10,79 @@ import random
 def main():
     __onStart()
     
+    global a
+    a = np.arange(0,10)
+    a = mat_create(a, 2, 5)
+    print(a)
+    a = mat_clear(a)
+    print(a)
+    a = mat_fill(a, 26)
+    print(a)
+    a = mat_scale(a, 0.25)
+    print(a)
+    
     
     
     __onEnd()
 
 def mat_create(data, rows, columns):
-    mat = np.array(data.reshape(rows, columns))
+    if len(data) == rows * columns:
+        mat = np.array(data.reshape(columns, rows), dtype = float)
+    else:
+        mat = np.zeros((columns, rows))
     return mat
 
 def mat_copy(matrix_out, matrix_in):
-    if(matrix_in.shape != matrix_out.shape):
+    if (matrix_in.shape != matrix_out.shape):
         return False
     
     np.copyto(matrix_out, matrix_in)
     return True
 
 def mat_clear(matrix):
-    pass
+    return np.zeros(matrix.shape)
 
 def mat_fill(matrix, value):
-    pass
+    mat = np.array(np.ones(matrix.shape), dtype = float)
+    mat *= value
+    return mat
 
 def mat_scale(matrix, value):
-    pass
-
+    mat = matrix * value
+    return mat
+    
+def mat_sum(matrix):
+    return np.sum(matrix)
+    
 def mat_add(matrix_a, matrix_b):
-    pass
+    if (matrix_a.shape == matrix_b.shape):
+        return False
+    
+    return matrix_a + matrix_b
+        
 
 def mat_sub(matrix_a, matrix_b):
-    pass
+    if (matrix_a.shape == matrix_b.shape):
+        return False
+    
+    return matrix_a - matrix_b
 
 def mat_mult(matrix_a, matrix_b, transpose_a, transpose_b):
-    pass
+    nonlocal mat_a
+    nonlocal mat_b
+    if transpose_a:
+        mat_a = matrix_a.T
+    else:
+        mat_a = matrix_a
+    if transpose_b:
+        mat_b = matrix_b.T
+    else:
+        mat_a = matrix_b
+    
+    if (mat_a.shape != mat_b.shape):
+        return False
+    
+    return np.dot(mat_a, mat_b)
 
 def mat_relu(matrix):
     pass
@@ -56,8 +97,6 @@ def __onStart():
     global Network
     Network = []
     print("------------------RUNNING------------------")
-    a = np.arange(0,10)
-    print(mat_create(a, 5, 2))
 
 def __onEnd():
     pass
