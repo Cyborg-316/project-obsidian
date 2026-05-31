@@ -11,7 +11,7 @@ from mnist import MNIST
 def main():
     __onStart()
 
-    mndata = MNIST(r"C:\Users\Anton\OneDrive\Documents\Repositories\project-obsidian\mnist")
+    mndata = MNIST('mnist')
     
     images, labels = mndata.load_training()
     train_images = images[:50000]
@@ -19,28 +19,45 @@ def main():
     test_images = images[50000:]
     test_labels = labels[50000:]
 
-    draw_mnist_digit(train_images[800])
-    print(num_to_vector(train_labels[800]))
+    draw_mnist_digit(train_images[7])
+    print(train_labels[7])
+    #print(num_to_vector(train_labels[7]))
+
+    #Layer1 = structure(784, 128)
+    #Laeyr2 = structure(128, 10)
+    #128 neurons in 1 hideen layer with 784 inputs and 10 outputs
+    
+    # inputs = cp.arange(0,10, 1, dtype = float)
+    # outputs = cp.arange(0,20, 2, dtype = float) + 1
+    # print(inputs, "\n", outputs)
+
+    Layer1 = structure(784, 10)
+
+    print(mat_softmax(Layer1.activations(mat_scale(cp.array([train_images[0]]), 1/255))))
+        
+
     
     
     __onEnd()
 
-def init_parameters(numInputs, numOutputs, numNuerons, numHiddenLayers):
-    W1 = cp.random.randn(numNuerons, numInputs)
-    b1 = cp.random.randn(numNuerons, 1)
-    W2 = cp.random.randn(numNuerons, numNuerons)
-    b2 = cp.random.randn(numNuerons, 1)
-    return W1, b1, W2, b2
+class structure:
+    def __init__(self, input_neurons, output_neurons):
+        self.weights = cp.ones((output_neurons, input_neurons))
+        self.biases = cp.ones(output_neurons)
 
-def foward_prop(W1, b1, W2, b2, x):
-    Z1 = mat_add(mat_mult(W1, x, False, False), b1)
-    A1 = mat_relu(Z1)
-    Z2 = mat_add(mat_mult(W2, A1, False, False), b2)
-    A2 = mat_softmax(Z2)
-    return Z1, A1, Z2, A2
+    def activations(self, inputs):   
+        return mat_relu(self.weighted_sums(inputs))
+    
+    def weighted_sums(self, inputs):
+        z = mat_mult(self.weights, cp.array([inputs]), False, False) + self.biases
+        return z
+    
+    def gradients():
+        pass
 
-def back_propr(Z1, A1, Z2, A2):
-    pass
+
+
+
 
 def draw_mnist_digit(data):
     if len(data) == 784:
@@ -49,9 +66,9 @@ def draw_mnist_digit(data):
             for y in range(28):
                 char = data[y + 28 * x]
                 if char > 0:
-                    print("0  ", end = "")
+                    print("0", end = "")
                 else:
-                    print("   ", end = "")
+                    print(" ", end = "")
             print("|")
         return True
     return False
@@ -86,8 +103,8 @@ def mat_scale(matrix, value):
     mat = cp.multiply(matrix, value)
     return mat
     
-def mat_sum(matrix, axis):
-    return cp.sum(matrix, axis=axis)
+def mat_sum(matrix):
+    return cp.sum(matrix)
     
 def mat_add(matrix_a, matrix_b):
     if (matrix_a.shape == matrix_b.shape):
@@ -120,7 +137,9 @@ def mat_mult(matrix_a, matrix_b, transpose_a, transpose_b):
         return cp.dot(mat_a, mat_b)
     return False
     
-
+def mat_transpose(matrix):
+    mat = cp.transpose(matrix)
+    return mat
 
 def mat_relu(matrix):
     mat = cp.maximum(matrix, 0)
@@ -128,7 +147,7 @@ def mat_relu(matrix):
 
 def mat_softmax(matrix):
     mat = cp.exp(matrix)
-    sum = mat_sum(mat, 1)
+    sum = mat_sum(mat)
     return mat_scale(mat, 1 / sum)
 
 def mat_cross_entropy(matrix_p, matrix_q):
@@ -138,7 +157,7 @@ def mat_cross_entropy(matrix_p, matrix_q):
     mat_p = mat_copy(matrix_p)
     mat_q = mat_copy(matrix_q)
     mat = cp.multiply(mat_p, cp.log(mat_q))
-    return -mat_sum(mat, None)
+    return -mat_sum(mat)
 
 
 def __onStart():
