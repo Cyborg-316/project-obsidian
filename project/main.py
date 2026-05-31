@@ -1,5 +1,5 @@
 #Neural Network with GPU and possibly TPU
-#version 1.0.2
+#version 1.0.3
 
 import numpy as np
 import math
@@ -52,7 +52,7 @@ class structure:
         z = mat_mult(self.weights, cp.array([inputs]), False, False) + self.biases
         return z
     
-    def gradients():
+    def gradients(self, ):
         pass
 
 
