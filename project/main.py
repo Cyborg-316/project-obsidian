@@ -1,5 +1,5 @@
 #Neural Network with GPU and possibly TPU
-#version 1.0.3
+#version 1.0.4
 
 import numpy as np
 import math
@@ -19,45 +19,67 @@ def main():
     test_images = images[50000:]
     test_labels = labels[50000:]
 
-    draw_mnist_digit(train_images[7])
-    print(train_labels[7])
+    draw_mnist_digit(train_images[102])
+    print(train_labels[102])
     #print(num_to_vector(train_labels[7]))
 
     #Layer1 = structure(784, 128)
-    #Laeyr2 = structure(128, 10)
+    #Layer2 = structure(128, 10)
     #128 neurons in 1 hideen layer with 784 inputs and 10 outputs
     
-    # inputs = cp.arange(0,10, 1, dtype = float)
-    # outputs = cp.arange(0,20, 2, dtype = float) + 1
-    # print(inputs, "\n", outputs)
 
-    Layer1 = structure(784, 10)
 
-    print(mat_softmax(Layer1.activations(mat_scale(cp.array([train_images[0]]), 1/255))))
-        
 
-    
-    
+
+    inputs = cp.arange(0,10, 1, dtype = float)
+    outputs = cp.arange(0,20, 2, dtype = float) -3
+    print("", inputs, "\n", outputs)
+
+    Layer1 = structure(1, 1, "last_layer")
+    for i in range(len(inputs)):
+        print(Layer1.deltas(inputs[i], outputs[i]))
+
+
+
+
+
+
+
+
+    #REMEBER TO FEED IT THE SOFT MAX VERSIONS FOR CROSS ENTROPY
     __onEnd()
 
 class structure:
-    def __init__(self, input_neurons, output_neurons):
+    def __init__(self, input_neurons, output_neurons, layer_type):
         self.weights = cp.ones((output_neurons, input_neurons))
         self.biases = cp.ones(output_neurons)
+        self.type = layer_type
 
-    def activations(self, inputs):   
-        return mat_relu(self.weighted_sums(inputs))
-    
     def weighted_sums(self, inputs):
         z = mat_mult(self.weights, cp.array([inputs]), False, False) + self.biases
-        return z
+        return mat_transpose(z)
+
+    def activations(self, inputs):  
+        return mat_relu(self.weighted_sums(inputs))
     
-    def gradients(self, ):
-        pass
-
-
-
-
+    def soft_max(self, inputs):
+        mat = self.activations(inputs)
+        mat = mat_softmax(mat)
+        return mat
+    
+    def cross_entropy(self, inputs, expected):
+        mat = self.soft_max(inputs)
+        mat = mat_cross_entropy(inputs, expected)
+        return mat
+    
+    def deltas(self, *args):
+        if self.type == "last_layer":
+            #last layer gradients no outputs needed
+            mat = 2 * (mat_sub(self.activations(args[0]), args[1]))
+            return mat
+        elif self.type == "hidden_layer":
+            #any layer gradients outputs needed
+            print("I am a hidden layer")
 
 def draw_mnist_digit(data):
     if len(data) == 784:
@@ -66,9 +88,9 @@ def draw_mnist_digit(data):
             for y in range(28):
                 char = data[y + 28 * x]
                 if char > 0:
-                    print("0", end = "")
+                    print("0  ", end = "")
                 else:
-                    print(" ", end = "")
+                    print("   ", end = "")
             print("|")
         return True
     return False
@@ -88,8 +110,7 @@ def mat_create(data, rows, columns):
     return mat
 
 def mat_copy(matrix):
-    return cp.copy(matrix)
-    
+    return cp.copy(matrix)  
 
 def mat_clear(matrix):
     return cp.zeros(matrix.shape)
@@ -109,9 +130,7 @@ def mat_sum(matrix):
 def mat_add(matrix_a, matrix_b):
     if (matrix_a.shape == matrix_b.shape):
         return False
-    
-    return cp.add(matrix_a, matrix_b)
-        
+    return cp.add(matrix_a, matrix_b) 
 
 def mat_sub(matrix_a, matrix_b):
     if (matrix_a.shape == matrix_b.shape):
@@ -139,11 +158,17 @@ def mat_mult(matrix_a, matrix_b, transpose_a, transpose_b):
     
 def mat_transpose(matrix):
     mat = cp.transpose(matrix)
+    if len(mat.shape) == 1:
+        mat = cp.reshape(matrix, (-1,1))
     return mat
 
 def mat_relu(matrix):
     mat = cp.maximum(matrix, 0)
     return mat
+
+def mat_d_relu(matrix):
+    return (matrix > 0).astype(float)
+
 
 def mat_softmax(matrix):
     mat = cp.exp(matrix)
@@ -152,11 +177,9 @@ def mat_softmax(matrix):
 
 def mat_cross_entropy(matrix_p, matrix_q):
     if (matrix_p.shape != matrix_q.shape):
-        False
+        return False
     
-    mat_p = mat_copy(matrix_p)
-    mat_q = mat_copy(matrix_q)
-    mat = cp.multiply(mat_p, cp.log(mat_q))
+    mat = cp.multiply(matrix_p, cp.log(matrix_q))
     return -mat_sum(mat)
 
 
