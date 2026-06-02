@@ -1,26 +1,26 @@
 #Neural Network with GPU and possibly TPU
-#version 1.0.4
+#version 1.0.5
 
-import numpy as np
+#import numpy as cp
 import math
 #import pygame
 import random
 import cupy as cp
-from mnist import MNIST
+# from mnist import MNIST
 
 def main():
     __onStart()
 
-    mndata = MNIST('mnist')
+    # mndata = MNIST('mnist')
     
-    images, labels = mndata.load_training()
-    train_images = images[:50000]
-    train_labels = labels[:50000]
-    test_images = images[50000:]
-    test_labels = labels[50000:]
+    # images, labels = mndata.load_training()
+    # train_images = images[:50000]
+    # train_labels = labels[:50000]
+    # test_images = images[50000:]
+    # test_labels = labels[50000:]
 
-    draw_mnist_digit(train_images[102])
-    print(train_labels[102])
+    # draw_mnist_digit(train_images[102])
+    # print(train_labels[102])
     #print(num_to_vector(train_labels[7]))
 
     #Layer1 = structure(784, 128)
@@ -36,10 +36,6 @@ def main():
     print("", inputs, "\n", outputs)
 
     Layer1 = structure(1, 1, "last_layer")
-    for i in range(len(inputs)):
-        #print(Layer1.bias_gradients(inputs[i], outputs[i]))
-        Layer1.weight_gradients(cp.array([inputs[i]]), inputs[i], outputs[i])
-
 
     #REMEBER TO FEED IT THE SOFT MAX VERSIONS FOR CROSS ENTROPY
     __onEnd()
@@ -49,26 +45,32 @@ class structure:
         self.weights = cp.ones((num_output_neurons, num_input_neurons))
         self.biases = cp.ones(num_output_neurons)
         self.type = layer_type
+        
+    def input(self, inputs):
+        self.inputs = inputs
+        
+    def output(self, outputs):
+        self.outputs = outputs
 
-    def weighted_sums(self, inputs):
-        z = mat_dot(self.weights, cp.array([inputs]), False, False) + self.biases
-        return mat_transpose(z)
+    def weighted_sums(self):
+        z = mat_dot(self.weights, self.inputs, False, False) + self.biases
+        return z
 
-    def activations(self, inputs):  
-        return mat_relu(self.weighted_sums(inputs))
+    def activations(self):
+        return mat_relu(self.weighted_sums())
     
-    def soft_max(self, inputs):
-        mat = self.activations(inputs)
+    def soft_max(self):
+        mat = self.activations()
         mat = mat_softmax(mat)
         return mat
     
-    def cross_entropy(self, inputs, expected):
-        mat = self.soft_max(inputs)
-        mat = mat_cross_entropy(inputs, expected)
+    def cross_entropy(self, expected):
+        mat = self.soft_max()
+        mat = mat_cross_entropy(mat, expected)
         return mat
     
     def deltas(self, *args):
-        #args[0] = inputs, args[1] = outputs, sometimes not necessary
+        #args[0] = inputs, args[1] = expected outputs
         if self.type == "last_layer":
             #last layer gradients no outputs needed
             mat = 2 * (mat_sub(self.activations(args[0]), args[1]))
@@ -78,9 +80,9 @@ class structure:
             print("I am a hidden layer")
 
     def weight_gradients(self, prev_activations, inputs, outputs):
-        mat = mat_mult(self.deltas(inputs, outputs), prev_activations, False, False)
-        print(self.deltas(inputs, outputs), prev_activations)
-        print( mat_mult(self.deltas(inputs, outputs), prev_activations, False, False))
+        mat = mat_mult(self.deltas(inputs, outputs), mat_transpose(prev_activations), False, False)
+        #print(self.deltas(inputs, outputs), prev_activations)
+        #print( mat_mult(self.deltas(inputs, outputs), prev_activations, False, False))
         return -learning_rate * mat
         
     def bias_gradients(self, inputs, outputs):
@@ -115,7 +117,7 @@ def mat_create(data, rows, columns):
     return mat
 
 def mat_copy(matrix):
-    return cp.copy(matrix)  
+    return cp.copy(matrix)
 
 def mat_clear(matrix):
     return cp.zeros(matrix.shape)
@@ -133,12 +135,12 @@ def mat_sum(matrix):
     return cp.sum(matrix)
     
 def mat_add(matrix_a, matrix_b):
-    if (matrix_a.shape == matrix_b.shape):
+    if (matrix_a.shape != matrix_b.shape):
         return False
-    return cp.add(matrix_a, matrix_b) 
+    return cp.add(matrix_a, matrix_b)
 
 def mat_sub(matrix_a, matrix_b):
-    if (matrix_a.shape == matrix_b.shape):
+    if (matrix_a.shape != matrix_b.shape):
         return False
     return cp.subtract(matrix_a, matrix_b)
 
@@ -161,10 +163,22 @@ def mat_dot(matrix_a, matrix_b, transpose_a, transpose_b):
     return False
 
 def mat_mult(matrix_a, matrix_b, transpose_a, transpose_b):
-    if (matrix_a.shape != matrix_b.shape):
-        return False
-    mat = cp.multiply(matrix_a, matrix_b)
-    return mat
+    mat_a = mat_copy(matrix_a)
+    mat_b = mat_copy(matrix_b)
+    if transpose_a:
+        mat_a = cp.transpose(mat_a)
+    if transpose_b:
+        mat_b = cp.transpose(mat_b)
+    
+    if len(mat_a.shape) == 1 and len(mat_b.shape) == 1 and mat_a.shape[0] == mat_b.shape[0]:
+        return cp.outer(mat_a, mat_b)
+    elif len(mat_a.shape) == 1 and len(mat_b.shape) == 2 and mat_a.shape[0] == mat_b.shape[0]:
+        return cp.outer(mat_a, mat_b)
+    elif len(mat_a.shape) == 2 and len(mat_b.shape) == 1 and mat_a.shape[1] == mat_b.shape[0]:
+        return cp.outer(mat_a, mat_b)
+    elif len(mat_a.shape) == 2 and len(mat_b.shape) == 2 and mat_a.shape[1] == mat_b.shape[0]:
+        return cp.outer(mat_a, mat_b)
+    return False
     
 def mat_transpose(matrix):
     mat = cp.transpose(matrix)
@@ -190,7 +204,6 @@ def mat_cross_entropy(matrix_p, matrix_q):
     
     mat = cp.multiply(matrix_p, cp.log(matrix_q))
     return -mat_sum(mat)
-
 
 def __onStart():
     global learning_rate
