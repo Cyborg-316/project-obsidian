@@ -27,8 +27,9 @@ def main():
     #Layer2 = structure(128, 10)
     #128 neurons in 1 hideen layer with 784 inputs and 10 outputs
     
-
-
+    print(cp.ones((2, 3)))
+    print(mat_create(cp.arange(0,3), 1, 3))
+    print(mat_dot(cp.ones((2, 3)), mat_create(cp.arange(0,3), 1, 3), False, False))
 
 
     inputs = cp.arange(0,10, 1, dtype = float)
@@ -36,6 +37,11 @@ def main():
     print("", inputs, "\n", outputs)
 
     Layer1 = structure(1, 1, "last_layer")
+    for i in range(len(inputs)):
+        Layer1.input(inputs[i])
+        Layer1.output(outputs[i])
+        print(Layer1.inputs, Layer1.outputs, "   pred:", Layer1.weighted_sums())
+    print(Layer1.weights, "x + ", Layer1.biases)
 
     #REMEBER TO FEED IT THE SOFT MAX VERSIONS FOR CROSS ENTROPY
     __onEnd()
@@ -53,6 +59,7 @@ class structure:
         self.outputs = outputs
 
     def weighted_sums(self):
+        
         z = mat_dot(self.weights, self.inputs, False, False) + self.biases
         return z
 
@@ -69,18 +76,18 @@ class structure:
         mat = mat_cross_entropy(mat, expected)
         return mat
     
-    def deltas(self, *args):
+    def deltas(self, expected):
         #args[0] = inputs, args[1] = expected outputs
         if self.type == "last_layer":
             #last layer gradients no outputs needed
-            mat = 2 * (mat_sub(self.activations(args[0]), args[1]))
+            mat = 2 * (mat_sub(self.activations(), expected))
             return mat
         elif self.type == "hidden_layer":
             #any layer gradients outputs needed
             print("I am a hidden layer")
 
-    def weight_gradients(self, prev_activations, inputs, outputs):
-        mat = mat_mult(self.deltas(inputs, outputs), mat_transpose(prev_activations), False, False)
+    def weight_gradients(self, prev_activations, expected):
+        mat = mat_mult(self.deltas(expected), mat_transpose(prev_activations), False, False)
         #print(self.deltas(inputs, outputs), prev_activations)
         #print( mat_mult(self.deltas(inputs, outputs), prev_activations, False, False))
         return -learning_rate * mat
