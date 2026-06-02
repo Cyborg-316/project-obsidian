@@ -37,26 +37,21 @@ def main():
 
     Layer1 = structure(1, 1, "last_layer")
     for i in range(len(inputs)):
-        print(Layer1.deltas(inputs[i], outputs[i]))
-
-
-
-
-
-
+        #print(Layer1.bias_gradients(inputs[i], outputs[i]))
+        Layer1.weight_gradients(cp.array([inputs[i]]), inputs[i], outputs[i])
 
 
     #REMEBER TO FEED IT THE SOFT MAX VERSIONS FOR CROSS ENTROPY
     __onEnd()
 
 class structure:
-    def __init__(self, input_neurons, output_neurons, layer_type):
-        self.weights = cp.ones((output_neurons, input_neurons))
-        self.biases = cp.ones(output_neurons)
+    def __init__(self, num_input_neurons, num_output_neurons, layer_type):
+        self.weights = cp.ones((num_output_neurons, num_input_neurons))
+        self.biases = cp.ones(num_output_neurons)
         self.type = layer_type
 
     def weighted_sums(self, inputs):
-        z = mat_mult(self.weights, cp.array([inputs]), False, False) + self.biases
+        z = mat_dot(self.weights, cp.array([inputs]), False, False) + self.biases
         return mat_transpose(z)
 
     def activations(self, inputs):  
@@ -73,6 +68,7 @@ class structure:
         return mat
     
     def deltas(self, *args):
+        #args[0] = inputs, args[1] = outputs, sometimes not necessary
         if self.type == "last_layer":
             #last layer gradients no outputs needed
             mat = 2 * (mat_sub(self.activations(args[0]), args[1]))
@@ -80,6 +76,15 @@ class structure:
         elif self.type == "hidden_layer":
             #any layer gradients outputs needed
             print("I am a hidden layer")
+
+    def weight_gradients(self, prev_activations, inputs, outputs):
+        mat = mat_mult(self.deltas(inputs, outputs), prev_activations, False, False)
+        print(self.deltas(inputs, outputs), prev_activations)
+        print( mat_mult(self.deltas(inputs, outputs), prev_activations, False, False))
+        return -learning_rate * mat
+        
+    def bias_gradients(self, inputs, outputs):
+        return -learning_rate * self.deltas(inputs, outputs)
 
 def draw_mnist_digit(data):
     if len(data) == 784:
@@ -135,10 +140,9 @@ def mat_add(matrix_a, matrix_b):
 def mat_sub(matrix_a, matrix_b):
     if (matrix_a.shape == matrix_b.shape):
         return False
-    
     return cp.subtract(matrix_a, matrix_b)
 
-def mat_mult(matrix_a, matrix_b, transpose_a, transpose_b):
+def mat_dot(matrix_a, matrix_b, transpose_a, transpose_b):
     mat_a = mat_copy(matrix_a)
     mat_b = mat_copy(matrix_b)
     if transpose_a:
@@ -155,6 +159,12 @@ def mat_mult(matrix_a, matrix_b, transpose_a, transpose_b):
     elif len(mat_a.shape) == 2 and len(mat_b.shape) == 2 and mat_a.shape[1] == mat_b.shape[0]:
         return cp.dot(mat_a, mat_b)
     return False
+
+def mat_mult(matrix_a, matrix_b, transpose_a, transpose_b):
+    if (matrix_a.shape != matrix_b.shape):
+        return False
+    mat = cp.multiply(matrix_a, matrix_b)
+    return mat
     
 def mat_transpose(matrix):
     mat = cp.transpose(matrix)
@@ -168,7 +178,6 @@ def mat_relu(matrix):
 
 def mat_d_relu(matrix):
     return (matrix > 0).astype(float)
-
 
 def mat_softmax(matrix):
     mat = cp.exp(matrix)
@@ -184,6 +193,8 @@ def mat_cross_entropy(matrix_p, matrix_q):
 
 
 def __onStart():
+    global learning_rate
+    learning_rate = 0.05
     print("------------------RUNNING------------------")
 
 def __onEnd():
