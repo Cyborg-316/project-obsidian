@@ -1,5 +1,5 @@
 #Neural Network with GPU and possibly TPU
-#version 1.0.6
+#version 1.0.7
 
 import numpy as cp
 #import math
@@ -27,11 +27,11 @@ def main():
     #Layer2 = structure(128, 10)
     #128 neurons in 1 hideen layer with 784 inputs and 10 outputs
 
-    A = mat_create(cp.array([1,2,3]),3, 1)
-    B = mat_create(cp.array([4,4]),2, 1)
-    print(A)
-    print(B)
-    print(mat_dot(A, B, True, True))
+    A = mat_transpose(mat_create(cp.array([1,2,3]),3, 1))
+    B = mat_transpose(mat_create(cp.array([4,4]),2, 1))
+    # print(A)
+    # print(B)
+    # print(mat_transpose(mat_outer(A, B, False, True)))
 
 
 
@@ -43,34 +43,22 @@ def main():
     learning_rate = 0.005
 
     inputs = cp.arange(0,10, 1, dtype = float)
-    outputs = cp.arange(0,20, 2, dtype = float)
+    outputs = cp.arange(0,20, 2, dtype = float) ** 2
 
 
-    Layer1 = structure(1, 1, "last_layer")
-    #print(Layer1.weights, "x + ", Layer1.biases)   
+    Layer1 = structure(1, 10, "last_layer")
+    Layer2 = structure(10, 1, "hidden_layer")
 
     for epoch in range(1):
-        tot_weight_grad = cp.zeros(Layer1.weights.shape)
-        tot_bias_grad = cp.zeros(Layer1.biases.shape)
         for i in range(len(inputs)):
-            Layer1.input(inputs[i])
-            Layer1.expected(outputs[i])
-            #print("bias grad tot:", tot_bias_grad)
-            tot_bias_grad += Layer1.bias_gradients()
-            #print("bias grad tot:", tot_bias_grad)
-            #print("weight grad tot:", tot_weight_grad)
-            tot_weight_grad += Layer1.weight_gradients()
-            #print("weight grad tot:", tot_weight_grad)
-        Layer1.weights += tot_weight_grad
-        Layer1.biases += tot_bias_grad
-
-    for i in range(len(inputs)):
-        Layer1.input(inputs[i])
-        Layer1.expected(outputs[i])
-        #print(inputs[i], outputs[i], "     pred:", Layer1.activations())
+            Layer1.input(cp.array([inputs[i]]))
+            Layer2.input(Layer1.activations())
+            Layer2.expected(outputs[i])
+            print("input:", inputs[i],"actual:", outputs[i], "     pred:", Layer2.activations())
 
 
     #print(Layer1.weights, "x + ", Layer1.biases)
+    #print(Layer2.weights, "x + ", Layer2.biases)
 
     #REMEBER TO FEED IT THE SOFT MAX VERSIONS FOR CROSS ENTROPY
     __onEnd()
@@ -78,17 +66,17 @@ def main():
 class structure:
     def __init__(self, num_input_neurons, num_output_neurons, layer_type):
         self.weights = cp.ones((num_output_neurons, num_input_neurons))
-        self.biases = cp.ones(num_output_neurons)
+        self.biases = mat_transpose(cp.ones(num_output_neurons))
         self.type = layer_type
 
     def input(self, inputs):
-        self.inputs = cp.array([inputs])
+        self.inputs = inputs
 
     def expected(self, outputs):
-        self.actual = cp.array([outputs])
+        self.actual = outputs
 
     def weighted_sums(self):
-        z = mat_dot(self.weights, self.inputs, False, False) + self.biases
+        z = mat_transpose(self.weights @ self.inputs) + self.biases
         return z
 
     def activations(self):
@@ -114,7 +102,7 @@ class structure:
             print("I am a hidden layer")
 
     def weight_gradients(self):
-        mat = mat_mult(self.deltas(), mat_transpose(self.inputs), False, False)
+        mat = mat_transpose(mat_outer(self.deltas(), mat_transpose(self.inputs), True, False))
         #print(self.deltas(inputs, outputs), prev_activations)
         #print( mat_mult(self.deltas(inputs, outputs), prev_activations, False, False))
         return -learning_rate * mat
@@ -213,6 +201,16 @@ def mat_mult(matrix_a, matrix_b, transpose_a, transpose_b):
     elif len(mat_a.shape) == 2 and len(mat_b.shape) == 2 and mat_a.shape[1] == mat_b.shape[0]:
         return cp.dot(mat_a, mat_b)
     return False
+
+def mat_outer(matrix_a, matrix_b, transpose_a, transpose_b):
+    mat_a = mat_copy(matrix_a)
+    mat_b = mat_copy(matrix_b)
+    if transpose_a:
+        mat_a = mat_transpose(mat_a)
+    if transpose_b:
+        mat_b = mat_transpose(mat_b)
+
+    return cp.outer(mat_a, mat_b)
 
 def mat_transpose(matrix):
     mat = cp.transpose(matrix)
