@@ -1,5 +1,5 @@
 #Neural Network with GPU and possibly TPU
-#version 1.0.7
+#version 1.0.8
 
 import numpy as cp
 #import math
@@ -27,11 +27,6 @@ def main():
     #Layer2 = structure(128, 10)
     #128 neurons in 1 hideen layer with 784 inputs and 10 outputs
 
-    A = mat_transpose(mat_create(cp.array([1,2,3]),3, 1))
-    B = mat_transpose(mat_create(cp.array([4,4]),2, 1))
-    # print(A)
-    # print(B)
-    # print(mat_transpose(mat_outer(A, B, False, True)))
 
 
 
@@ -54,6 +49,9 @@ def main():
             Layer1.input(cp.array([inputs[i]]))
             Layer2.input(Layer1.activations())
             Layer2.expected(outputs[i])
+            print(Layer2.deltas())
+            print(Layer1.deltas())
+            
             print("input:", inputs[i],"actual:", outputs[i], "     pred:", Layer2.activations())
 
 
@@ -92,14 +90,14 @@ class structure:
         mat = mat_cross_entropy(mat, self.actual)
         return mat
 
-    def deltas(self):
+    def deltas(self, after_weights, after_deltas):
         if self.type == "last_layer":
-            #last layer gradients no outputs needed
             mat = 2 * (mat_sub(self.activations(), self.actual))
             return mat
         elif self.type == "hidden_layer":
-            #any layer gradients outputs needed
-            print("I am a hidden layer")
+            mat_a = mat_transpose(after_weights)
+            mat_b = after_deltas
+            print(mat_b)
 
     def weight_gradients(self):
         mat = mat_transpose(mat_outer(self.deltas(), mat_transpose(self.inputs), True, False))
