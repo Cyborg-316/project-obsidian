@@ -27,20 +27,29 @@ def main():
     #Layer2 = structure(128, 10)
     #128 neurons in 1 hideen layer with 784 inputs and 10 outputs
     
-    print(cp.ones((2, 3)))
-    print(mat_create(cp.arange(0,3), 1, 3))
-    print(mat_dot(cp.ones((2, 3)), mat_create(cp.arange(0,3), 1, 3), False, False))
-
-
     inputs = cp.arange(0,10, 1, dtype = float)
     outputs = cp.arange(0,20, 2, dtype = float) -3
-    print("", inputs, "\n", outputs)
+
 
     Layer1 = structure(1, 1, "last_layer")
+
+    for epoch in range(1000):
+        tot_weight_grad = cp.zeros(Layer1.weights.shape)
+        tot_bias_grad = cp.zeros(Layer1.biases.shape)
+        for i in range(len(inputs)):
+            Layer1.input(inputs[i])
+            Layer1.expected(outputs[i])
+            tot_bias_grad += Layer1.bias_gradients()
+            tot_weight_grad += Layer1.weight_gradients()
+        Layer1.weights += tot_weight_grad
+        Layer1.biases += tot_bias_grad
+
     for i in range(len(inputs)):
         Layer1.input(inputs[i])
-        Layer1.output(outputs[i])
-        print(Layer1.inputs, Layer1.outputs, "   pred:", Layer1.weighted_sums())
+        Layer1.expected(outputs[i])
+        print(inputs[i], outputs[i], "     pred:", Layer1.activations())
+            
+
     print(Layer1.weights, "x + ", Layer1.biases)
 
     #REMEBER TO FEED IT THE SOFT MAX VERSIONS FOR CROSS ENTROPY
@@ -53,13 +62,12 @@ class structure:
         self.type = layer_type
         
     def input(self, inputs):
-        self.inputs = inputs
+        self.inputs = cp.array([inputs])
         
-    def output(self, outputs):
-        self.outputs = outputs
+    def expected(self, outputs):
+        self.actual = cp.array([outputs])
 
     def weighted_sums(self):
-        
         z = mat_dot(self.weights, self.inputs, False, False) + self.biases
         return z
 
@@ -71,29 +79,28 @@ class structure:
         mat = mat_softmax(mat)
         return mat
     
-    def cross_entropy(self, expected):
+    def cross_entropy(self):
         mat = self.soft_max()
-        mat = mat_cross_entropy(mat, expected)
+        mat = mat_cross_entropy(mat, self.actual)
         return mat
     
-    def deltas(self, expected):
-        #args[0] = inputs, args[1] = expected outputs
+    def deltas(self):
         if self.type == "last_layer":
             #last layer gradients no outputs needed
-            mat = 2 * (mat_sub(self.activations(), expected))
+            mat = 2 * (mat_sub(self.weighted_sums(), self.actual))
             return mat
         elif self.type == "hidden_layer":
             #any layer gradients outputs needed
             print("I am a hidden layer")
 
-    def weight_gradients(self, prev_activations, expected):
-        mat = mat_mult(self.deltas(expected), mat_transpose(prev_activations), False, False)
+    def weight_gradients(self):
+        mat = mat_mult(self.deltas(), mat_transpose(self.inputs), False, False)
         #print(self.deltas(inputs, outputs), prev_activations)
         #print( mat_mult(self.deltas(inputs, outputs), prev_activations, False, False))
         return -learning_rate * mat
         
-    def bias_gradients(self, inputs, outputs):
-        return -learning_rate * self.deltas(inputs, outputs)
+    def bias_gradients(self):
+        return -learning_rate * self.deltas()
 
 def draw_mnist_digit(data):
     if len(data) == 784:
@@ -155,9 +162,9 @@ def mat_dot(matrix_a, matrix_b, transpose_a, transpose_b):
     mat_a = mat_copy(matrix_a)
     mat_b = mat_copy(matrix_b)
     if transpose_a:
-        mat_a = cp.transpose(mat_a)
+        mat_a = mat_transpose(mat_a)
     if transpose_b:
-        mat_b = cp.transpose(mat_b)
+        mat_b = mat_transpose(mat_b)
     
     if len(mat_a.shape) == 1 and len(mat_b.shape) == 1 and mat_a.shape[0] == mat_b.shape[0]:
         return cp.dot(mat_a, mat_b)
@@ -173,9 +180,9 @@ def mat_mult(matrix_a, matrix_b, transpose_a, transpose_b):
     mat_a = mat_copy(matrix_a)
     mat_b = mat_copy(matrix_b)
     if transpose_a:
-        mat_a = cp.transpose(mat_a)
+        mat_a = mat_transpose(mat_a)
     if transpose_b:
-        mat_b = cp.transpose(mat_b)
+        mat_b = mat_transpose(mat_b)
     
     if len(mat_a.shape) == 1 and len(mat_b.shape) == 1 and mat_a.shape[0] == mat_b.shape[0]:
         return cp.outer(mat_a, mat_b)
@@ -214,7 +221,7 @@ def mat_cross_entropy(matrix_p, matrix_q):
 
 def __onStart():
     global learning_rate
-    learning_rate = 0.05
+    learning_rate = 0.001
     print("------------------RUNNING------------------")
 
 def __onEnd():
