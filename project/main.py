@@ -1,18 +1,18 @@
 #Neural Network with GPU and possibly TPU
-#version 1.0.5
+#version 1.0.6
 
-#import numpy as cp
-import math
+import numpy as cp
+#import math
 #import pygame
-import random
-import cupy as cp
+#import random
+#import cupy as cp
 # from mnist import MNIST
 
 def main():
     __onStart()
 
     # mndata = MNIST('mnist')
-    
+
     # images, labels = mndata.load_training()
     # train_images = images[:50000]
     # train_labels = labels[:50000]
@@ -26,31 +26,51 @@ def main():
     #Layer1 = structure(784, 128)
     #Layer2 = structure(128, 10)
     #128 neurons in 1 hideen layer with 784 inputs and 10 outputs
-    
+
+    A = mat_create(cp.array([1,2,3]),3, 1)
+    B = mat_create(cp.array([4,4]),2, 1)
+    print(A)
+    print(B)
+    print(mat_dot(A, B, True, True))
+
+
+
+
+
+
+
+    global learning_rate
+    learning_rate = 0.005
+
     inputs = cp.arange(0,10, 1, dtype = float)
-    outputs = cp.arange(0,20, 2, dtype = float) -3
+    outputs = cp.arange(0,20, 2, dtype = float)
 
 
     Layer1 = structure(1, 1, "last_layer")
+    #print(Layer1.weights, "x + ", Layer1.biases)   
 
-    for epoch in range(1000):
+    for epoch in range(1):
         tot_weight_grad = cp.zeros(Layer1.weights.shape)
         tot_bias_grad = cp.zeros(Layer1.biases.shape)
         for i in range(len(inputs)):
             Layer1.input(inputs[i])
             Layer1.expected(outputs[i])
+            #print("bias grad tot:", tot_bias_grad)
             tot_bias_grad += Layer1.bias_gradients()
+            #print("bias grad tot:", tot_bias_grad)
+            #print("weight grad tot:", tot_weight_grad)
             tot_weight_grad += Layer1.weight_gradients()
+            #print("weight grad tot:", tot_weight_grad)
         Layer1.weights += tot_weight_grad
         Layer1.biases += tot_bias_grad
 
     for i in range(len(inputs)):
         Layer1.input(inputs[i])
         Layer1.expected(outputs[i])
-        print(inputs[i], outputs[i], "     pred:", Layer1.activations())
-            
+        #print(inputs[i], outputs[i], "     pred:", Layer1.activations())
 
-    print(Layer1.weights, "x + ", Layer1.biases)
+
+    #print(Layer1.weights, "x + ", Layer1.biases)
 
     #REMEBER TO FEED IT THE SOFT MAX VERSIONS FOR CROSS ENTROPY
     __onEnd()
@@ -60,10 +80,10 @@ class structure:
         self.weights = cp.ones((num_output_neurons, num_input_neurons))
         self.biases = cp.ones(num_output_neurons)
         self.type = layer_type
-        
+
     def input(self, inputs):
         self.inputs = cp.array([inputs])
-        
+
     def expected(self, outputs):
         self.actual = cp.array([outputs])
 
@@ -73,21 +93,21 @@ class structure:
 
     def activations(self):
         return mat_relu(self.weighted_sums())
-    
+
     def soft_max(self):
         mat = self.activations()
         mat = mat_softmax(mat)
         return mat
-    
+
     def cross_entropy(self):
         mat = self.soft_max()
         mat = mat_cross_entropy(mat, self.actual)
         return mat
-    
+
     def deltas(self):
         if self.type == "last_layer":
             #last layer gradients no outputs needed
-            mat = 2 * (mat_sub(self.weighted_sums(), self.actual))
+            mat = 2 * (mat_sub(self.activations(), self.actual))
             return mat
         elif self.type == "hidden_layer":
             #any layer gradients outputs needed
@@ -98,9 +118,9 @@ class structure:
         #print(self.deltas(inputs, outputs), prev_activations)
         #print( mat_mult(self.deltas(inputs, outputs), prev_activations, False, False))
         return -learning_rate * mat
-        
+
     def bias_gradients(self):
-        return -learning_rate * self.deltas()
+        return -learning_rate * self.deltas() 
 
 def draw_mnist_digit(data):
     if len(data) == 784:
@@ -144,10 +164,10 @@ def mat_fill(matrix, value):
 def mat_scale(matrix, value):
     mat = cp.multiply(matrix, value)
     return mat
-    
+
 def mat_sum(matrix):
     return cp.sum(matrix)
-    
+
 def mat_add(matrix_a, matrix_b):
     if (matrix_a.shape != matrix_b.shape):
         return False
@@ -165,7 +185,7 @@ def mat_dot(matrix_a, matrix_b, transpose_a, transpose_b):
         mat_a = mat_transpose(mat_a)
     if transpose_b:
         mat_b = mat_transpose(mat_b)
-    
+
     if len(mat_a.shape) == 1 and len(mat_b.shape) == 1 and mat_a.shape[0] == mat_b.shape[0]:
         return cp.dot(mat_a, mat_b)
     elif len(mat_a.shape) == 1 and len(mat_b.shape) == 2 and mat_a.shape[0] == mat_b.shape[0]:
@@ -183,17 +203,17 @@ def mat_mult(matrix_a, matrix_b, transpose_a, transpose_b):
         mat_a = mat_transpose(mat_a)
     if transpose_b:
         mat_b = mat_transpose(mat_b)
-    
+
     if len(mat_a.shape) == 1 and len(mat_b.shape) == 1 and mat_a.shape[0] == mat_b.shape[0]:
-        return cp.outer(mat_a, mat_b)
+        return cp.dot(mat_a, mat_b)
     elif len(mat_a.shape) == 1 and len(mat_b.shape) == 2 and mat_a.shape[0] == mat_b.shape[0]:
-        return cp.outer(mat_a, mat_b)
+        return cp.dot(mat_a, mat_b)
     elif len(mat_a.shape) == 2 and len(mat_b.shape) == 1 and mat_a.shape[1] == mat_b.shape[0]:
-        return cp.outer(mat_a, mat_b)
+        return cp.dot(mat_a, mat_b)
     elif len(mat_a.shape) == 2 and len(mat_b.shape) == 2 and mat_a.shape[1] == mat_b.shape[0]:
-        return cp.outer(mat_a, mat_b)
+        return cp.dot(mat_a, mat_b)
     return False
-    
+
 def mat_transpose(matrix):
     mat = cp.transpose(matrix)
     if len(mat.shape) == 1:
@@ -215,13 +235,11 @@ def mat_softmax(matrix):
 def mat_cross_entropy(matrix_p, matrix_q):
     if (matrix_p.shape != matrix_q.shape):
         return False
-    
+
     mat = cp.multiply(matrix_p, cp.log(matrix_q))
     return -mat_sum(mat)
 
 def __onStart():
-    global learning_rate
-    learning_rate = 0.001
     print("------------------RUNNING------------------")
 
 def __onEnd():
