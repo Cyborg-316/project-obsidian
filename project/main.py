@@ -1,5 +1,5 @@
 #Neural Network with GPU and possibly TPU
-#version 1.0.8
+#version 1.0.9
 
 import numpy as cp
 #import math
@@ -41,18 +41,18 @@ def main():
     outputs = cp.arange(0,20, 2, dtype = float) ** 2
 
 
-    Layer1 = structure(1, 10, "last_layer")
-    Layer2 = structure(10, 1, "hidden_layer")
+    Layer1 = structure(1, 10, "hidden_layer")
+    Layer2 = structure(10, 1, "last_layer")
 
     for epoch in range(1):
         for i in range(len(inputs)):
             Layer1.input(cp.array([inputs[i]]))
             Layer2.input(Layer1.activations())
-            Layer2.expected(outputs[i])
-            print(Layer2.deltas())
-            print(Layer1.deltas())
-            
-            print("input:", inputs[i],"actual:", outputs[i], "     pred:", Layer2.activations())
+            Layer2.expected(mat_transpose(cp.array([outputs[i]])))
+            Layer1.after_weights(Layer2.weights)
+            Layer1.after_deltas(Layer2.deltas())
+
+            #print("input:", inputs[i],"actual:", outputs[i], "     pred:", Layer2.activations())
 
 
     #print(Layer1.weights, "x + ", Layer1.biases)
@@ -65,13 +65,21 @@ class structure:
     def __init__(self, num_input_neurons, num_output_neurons, layer_type):
         self.weights = cp.ones((num_output_neurons, num_input_neurons))
         self.biases = mat_transpose(cp.ones(num_output_neurons))
-        self.type = layer_type
+        self.layer_type = layer_type
+        self.weight_gradients = cp.zeros((num_output_neurons, num_input_neurons))
+        self.bias_gradients = mat_transpose(cp.zeros(num_output_neurons))
 
     def input(self, inputs):
         self.inputs = inputs
 
     def expected(self, outputs):
         self.actual = outputs
+
+    def after_weights(self, succeeding_weights):
+        self.succeeding_weights = succeeding_weights
+
+    def after_deltas(self, succeeding_deltas):
+        self.succeeding_deltas = succeeding_deltas
 
     def weighted_sums(self):
         z = mat_transpose(self.weights @ self.inputs) + self.biases
@@ -90,23 +98,30 @@ class structure:
         mat = mat_cross_entropy(mat, self.actual)
         return mat
 
-    def deltas(self, after_weights, after_deltas):
-        if self.type == "last_layer":
-            mat = 2 * (mat_sub(self.activations(), self.actual))
+    def deltas(self):
+        if self.layer_type == "last_layer":
+            mat = 2 * mat_sub(self.activations(), self.actual)
             return mat
-        elif self.type == "hidden_layer":
-            mat_a = mat_transpose(after_weights)
-            mat_b = after_deltas
-            print(mat_b)
+        elif self.layer_type == "hidden_layer":
+            mat_a = self.succeeding_weights
+            mat_b = mat_transpose(self.succeeding_deltas)
+            mat_c = mat_d_relu(self.weighted_sums())
 
-    def weight_gradients(self):
-        mat = mat_transpose(mat_outer(self.deltas(), mat_transpose(self.inputs), True, False))
-        #print(self.deltas(inputs, outputs), prev_activations)
-        #print( mat_mult(self.deltas(inputs, outputs), prev_activations, False, False))
-        return -learning_rate * mat
+            return mat_mult(mat_c, mat_dot(mat_a, mat_b, True, False), False, False)
 
-    def bias_gradients(self):
-        return -learning_rate * self.deltas() 
+
+    def update_parameters(self):
+        self.weights = mat_add(self.weights, -learning_rate * self.weight_gradients)
+        self.biases = mat_add(self.biases, -learning_rate * self.bias_gradients)
+
+    def update_gradients(self):
+        self.weight_gradients = mat_add(#to be continued)
+        self.bias_gradients = mat_add(self.bias_gradients, self.deltas())
+
+    def reset_gradients(self):
+        self.weight_gradients = mat_scale(self.weight_gradients, 0)
+        self.bias_gradients = mat_scale(self.bias_gradients, 0)
+
 
 def draw_mnist_digit(data):
     if len(data) == 784:
@@ -172,15 +187,7 @@ def mat_dot(matrix_a, matrix_b, transpose_a, transpose_b):
     if transpose_b:
         mat_b = mat_transpose(mat_b)
 
-    if len(mat_a.shape) == 1 and len(mat_b.shape) == 1 and mat_a.shape[0] == mat_b.shape[0]:
-        return cp.dot(mat_a, mat_b)
-    elif len(mat_a.shape) == 1 and len(mat_b.shape) == 2 and mat_a.shape[0] == mat_b.shape[0]:
-        return cp.dot(mat_a, mat_b)
-    elif len(mat_a.shape) == 2 and len(mat_b.shape) == 1 and mat_a.shape[1] == mat_b.shape[0]:
-        return cp.dot(mat_a, mat_b)
-    elif len(mat_a.shape) == 2 and len(mat_b.shape) == 2 and mat_a.shape[1] == mat_b.shape[0]:
-        return cp.dot(mat_a, mat_b)
-    return False
+    return cp.dot(mat_a, mat_b)
 
 def mat_mult(matrix_a, matrix_b, transpose_a, transpose_b):
     mat_a = mat_copy(matrix_a)
@@ -190,15 +197,9 @@ def mat_mult(matrix_a, matrix_b, transpose_a, transpose_b):
     if transpose_b:
         mat_b = mat_transpose(mat_b)
 
-    if len(mat_a.shape) == 1 and len(mat_b.shape) == 1 and mat_a.shape[0] == mat_b.shape[0]:
-        return cp.dot(mat_a, mat_b)
-    elif len(mat_a.shape) == 1 and len(mat_b.shape) == 2 and mat_a.shape[0] == mat_b.shape[0]:
-        return cp.dot(mat_a, mat_b)
-    elif len(mat_a.shape) == 2 and len(mat_b.shape) == 1 and mat_a.shape[1] == mat_b.shape[0]:
-        return cp.dot(mat_a, mat_b)
-    elif len(mat_a.shape) == 2 and len(mat_b.shape) == 2 and mat_a.shape[1] == mat_b.shape[0]:
-        return cp.dot(mat_a, mat_b)
-    return False
+    if mat_a.shape != mat_b.shape:
+        return False
+    return cp.multiply(mat_a, mat_b)
 
 def mat_outer(matrix_a, matrix_b, transpose_a, transpose_b):
     mat_a = mat_copy(matrix_a)
