@@ -6,7 +6,7 @@ import numpy as cp
 #import pygame
 #import random
 #import cupy as cp
-# from mnist import MNIST
+#from mnist import MNIST
 
 def main():
     __onStart()
@@ -19,8 +19,8 @@ def main():
     # test_images = images[50000:]
     # test_labels = labels[50000:]
 
-    # draw_mnist_digit(train_images[102])
-    # print(train_labels[102])
+    # draw_mnist_digit(train_images[900])
+    # print(train_labels[900])
     #print(num_to_vector(train_labels[7]))
 
     #Layer1 = structure(784, 128)
@@ -45,6 +45,9 @@ def main():
     Layer2 = structure(10, 1, "last_layer")
 
     for epoch in range(1):
+        Layer1.reset_gradients()
+        Layer2.reset_gradients()
+
         for i in range(len(inputs)):
             Layer1.input(cp.array([inputs[i]]))
             Layer2.input(Layer1.activations())
@@ -52,11 +55,18 @@ def main():
             Layer1.after_weights(Layer2.weights)
             Layer1.after_deltas(Layer2.deltas())
 
-            #print("input:", inputs[i],"actual:", outputs[i], "     pred:", Layer2.activations())
+            print("input:", inputs[i],"actual:", outputs[i], "     pred:",Layer2.activations(),  Layer2.deltas())
+
+            Layer1.update_gradients()
+            Layer2.update_gradients()
+        
+        print(Layer1.bias_gradients)
+        Layer1.update_parameters()
+        Layer2.update_parameters()
 
 
-    #print(Layer1.weights, "x + ", Layer1.biases)
-    #print(Layer2.weights, "x + ", Layer2.biases)
+    print(Layer1.weights, "x + ", Layer1.biases)
+    print(Layer2.weights, "x + ", Layer2.biases)
 
     #REMEBER TO FEED IT THE SOFT MAX VERSIONS FOR CROSS ENTROPY
     __onEnd()
@@ -115,7 +125,8 @@ class structure:
         self.biases = mat_add(self.biases, -learning_rate * self.bias_gradients)
 
     def update_gradients(self):
-        self.weight_gradients = mat_add(#to be continued)
+        #WEIGHT UPDATES ARE WRONG
+        self.weight_gradients = mat_add(self.bias_gradients, self.deltas())
         self.bias_gradients = mat_add(self.bias_gradients, self.deltas())
 
     def reset_gradients(self):
