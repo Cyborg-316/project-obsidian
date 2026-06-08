@@ -1,8 +1,8 @@
 #Neural Network with GPU and possibly TPU
-#version 1.0.9
+#version 1.0.10
 
 import numpy as cp
-#import math
+import math
 #import pygame
 #import random
 #import cupy as cp
@@ -28,23 +28,17 @@ def main():
     #128 neurons in 1 hideen layer with 784 inputs and 10 outputs
 
 
+    learning_rate = 0.0001
+
+    inputs = cp.arange(0,11, 1, dtype = float) / 10
+    outputs = cp.arange(0,11, 1, dtype = float) ** 2 / 100
 
 
+    Layer1 = structure(1, 11, "hidden_layer")
+    Layer2 = structure(11, 1, "last_layer")
 
-
-
-
-    global learning_rate
-    learning_rate = 0.005
-
-    inputs = cp.arange(0,10, 1, dtype = float)
-    outputs = cp.arange(0,20, 2, dtype = float) ** 2
-
-
-    Layer1 = structure(1, 10, "hidden_layer")
-    Layer2 = structure(10, 1, "last_layer")
-
-    for epoch in range(1):
+    #Training
+    for epoch in range(1000000):
         Layer1.reset_gradients()
         Layer2.reset_gradients()
 
@@ -54,27 +48,34 @@ def main():
             Layer2.expected(mat_transpose(cp.array([outputs[i]])))
             Layer1.after_weights(Layer2.weights)
             Layer1.after_deltas(Layer2.deltas())
-
-            print("input:", inputs[i],"actual:", outputs[i], "     pred:",Layer2.activations(),  Layer2.deltas())
-
             Layer1.update_gradients()
             Layer2.update_gradients()
+
+
+        prev = Layer2.activations()
+        Layer1.update_parameters(learning_rate)
+        Layer2.update_parameters(learning_rate)
+        new = Layer2.activations()
+        if prev == new and epoch > 1000:
+            print("No further change; Epoch:", epoch)
+            break
         
-        print(Layer1.bias_gradients)
-        Layer1.update_parameters()
-        Layer2.update_parameters()
+        if epoch % 10000 == 0:
+            print("epoch", epoch, "     inputs", inputs[i], "    actual:", outputs[i], "    pred:", Layer2.activations())
 
-
-    print(Layer1.weights, "x + ", Layer1.biases)
-    print(Layer2.weights, "x + ", Layer2.biases)
+    #Checking
+    for i in range(len(inputs)):
+        Layer1.input(cp.array([inputs[i]]))
+        Layer2.input(Layer1.activations())
+        print(10 * inputs[i], "    actual:", 100 * outputs[i], "    pred:", 100 * Layer2.activations())
 
     #REMEBER TO FEED IT THE SOFT MAX VERSIONS FOR CROSS ENTROPY
     __onEnd()
 
 class structure:
     def __init__(self, num_input_neurons, num_output_neurons, layer_type):
-        self.weights = cp.ones((num_output_neurons, num_input_neurons))
-        self.biases = mat_transpose(cp.ones(num_output_neurons))
+        self.weights = cp.random.randn(num_output_neurons, num_input_neurons)
+        self.biases = mat_transpose(cp.random.randn(num_output_neurons))
         self.layer_type = layer_type
         self.weight_gradients = cp.zeros((num_output_neurons, num_input_neurons))
         self.bias_gradients = mat_transpose(cp.zeros(num_output_neurons))
@@ -120,19 +121,17 @@ class structure:
             return mat_mult(mat_c, mat_dot(mat_a, mat_b, True, False), False, False)
 
 
-    def update_parameters(self):
-        self.weights = mat_add(self.weights, -learning_rate * self.weight_gradients)
-        self.biases = mat_add(self.biases, -learning_rate * self.bias_gradients)
+    def update_parameters(self, lr):
+        self.weights = mat_add(self.weights, -lr * self.weight_gradients)
+        self.biases = mat_add(self.biases, -lr * self.bias_gradients)
 
     def update_gradients(self):
-        #WEIGHT UPDATES ARE WRONG
-        self.weight_gradients = mat_add(self.bias_gradients, self.deltas())
+        self.weight_gradients = mat_add(self.weight_gradients, mat_dot(self.deltas(), self.inputs, False, True))
         self.bias_gradients = mat_add(self.bias_gradients, self.deltas())
 
     def reset_gradients(self):
         self.weight_gradients = mat_scale(self.weight_gradients, 0)
         self.bias_gradients = mat_scale(self.bias_gradients, 0)
-
 
 def draw_mnist_digit(data):
     if len(data) == 784:
@@ -228,9 +227,8 @@ def mat_transpose(matrix):
         mat = cp.reshape(matrix, (-1,1))
     return mat
 
-def mat_relu(matrix):
-    mat = cp.maximum(matrix, 0)
-    return mat
+def mat_relu(matrix): 
+    return cp.maximum(matrix, 0)
 
 def mat_d_relu(matrix):
     return (matrix > 0).astype(float)
