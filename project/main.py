@@ -1,70 +1,76 @@
 #Neural Network with GPU and possibly TPU
-#version 1.2.1
+#Stoicastic gradient descent
+#version 1.3.1
 
 import numpy as cp # noqa: I001
+import random
 from mnist import MNIST
 
 def main():
     input_array = cp.array(range(10))
     output_array = 2 * input_array + 1
+    print(input_array, output_array)
     
-    NNM = network(1, 2, 3, 5)
-    print(NNM.weights, "\n\n\n", NNM.biases)
-    NNM.feed(input_array, output_array)
-    NNM.train(1000, 0.05)
+    Layers = [LAYER(1, 1)]
 
-    draw_mnist_digit(8)
+    print("weight(s):", Layers[0].weights, "bias(es):", Layers[0].biases)
 
-
-
-
+    x = cp.array([[input_array[1]]])
+    for layer in Layers:
+        x = layer.foward(x)
+    print("a", x)
 
 
-class network():
-    def __init__(self, a, b, c, d):
+
+
+
+    draw_mnist_digit(random.randint(0,9))
+
+class LAYER():
+    def __init__(self, a, b):
         self.input_amt = a
-        self.hidden_layer_amt = b
-        self.neuron_amt = c
-        self.output_amt = d
+        self.output_amt = b
 
         #init weights & biases
-        weights = []
-        biases = []
-        if b > 0:
-            weights.append(cp.zeros((c, a)))
-            for i in range(b - 1):
-                weights.append(cp.zeros((c, c)))
-            for i in range(b):
-                biases.append(cp.zeros((c, 1)))
-            weights.append(cp.zeros((d, c)))
-            biases.append(cp.zeros((d, 1)))
+        if b > 1 or a > 1:
+            self.weights = custom_array.random(b, a)
+            self.biases = custom_array.zeros(b, 1)
+        else:
+            self.weights = custom_array.single1()
+            self.biases = custom_array.single2()
 
-            self.weights = weights
-            self.biases = biases
+    def foward(self, inputs):
+        #return activations, store weighted sums
+        z = cp.dot(self.weights, inputs)
+        if self.output_amt == 1:
+            z = cp.array([z])
+        z += self.biases
+        a = self.activation(z)
+        self.weighetd_sums = z
+        self.activations = a
+        return a
 
-    def train(self, iterations, lr):
-        for epoch in range(iterations):
-            #pass
-            #back prop
-            #update parameters
-            pass
+    def activation(self, x):
+        return cp.maximum(x, 0)
 
-    def feed(self, array_1, array_2):
-        self.input_cache = array_1
-        self.actual_cache = array_2
+    def d_activation(self, x):
+        return (x > 0).astype(float)
 
-    def foward(self):
-        #return weighted sums and activations
-        input_amt = self.input_amt
-        layer_amt = self.hidden_layer_amt
-        neuron_amt = self.neuron_amt
-        output_amt = self.output_amt
+class custom_array():
+    def random(rows, columns):
+        return cp.random.randn(rows, columns) * cp.sqrt(2 / columns)
 
-        weightedSums = []
-        activations = []
+    def zeros(rows, columns):
+        return (cp.random.randint(3, size=(rows, columns)) - 1) * cp.sqrt(2 / columns)
 
+    def ones(rows, columns):
+        return cp.ones((rows, columns))
 
+    def single1():
+        return cp.array([cp.random.randn() * cp.sqrt(2)])
 
+    def single2():
+        return cp.array([cp.sqrt(2)]) * (random.randint(-1,1))
 
 def draw_mnist_digit(number):
     mndata = MNIST('mnist')
