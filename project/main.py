@@ -1,6 +1,6 @@
 #Neural Network with GPU and possibly TPU
 #Stoicastic gradient descent
-#version 1.3.2
+#version 1.3.3
 
 import numpy as cp # noqa: I001
 import random
@@ -11,49 +11,60 @@ def main():
     output_array = 3 * input_array + 10
     print(input_array, output_array)
     
-    Layers = [LAYER(1, 1), LAYER(1, 1)]
+    Layers = [LAYER(1, 1)]
 
-    print("weight(s):", Layers[0].weights, "bias(es):", Layers[0].biases)
-
+    NETWORK.TELEMENTARY_PARAMETERS(Layers)
 
     for epoch in range(400):
         for index in range(len(input_array)):
-            # print("running")
-            #foward pass
-            x = cp.array([[input_array[index]]])
-            for layer in Layers:
-                x = layer.foward(x)
+            NETWORK.FOWARD(Layers, cp.array([[input_array[index]]]))
 
-            actual = cp.array([[output_array[index]]])
+            NETWORK.BACKPROP(Layers, actual = cp.array([[output_array[index]]]))
 
-            #back prop
-            Layers[-1].backward1(actual)
-            # for layer in reversed(Layers):
-            #     gradient = layer.backward2(gradient)
-            
-            #update
-            for layer in Layers:
-                layer.update_parameters()
+            NETWORK.UDPATE(Layers, learning_rate=0.01)
 
-    print("weight(s):", Layers[0].weights, "bias(es):", Layers[0].biases)
-    Cost = 0
-    for index in range(len(input_array)):
-        # print("running")
-        #foward pass
-        x = cp.array([[input_array[index]]])
-        for layer in Layers:
-            x = layer.foward(x)
+    NETWORK.TELEMENTARY_PARAMETERS(Layers)
 
-
-        actual = cp.array([[output_array[index]]])
-        print("pred", x, "actual", actual)
-        Cost = (x - actual) ** 2
-
-    print(Cost)
+    NETWORK.TELEMENTARY_PRED_VS_ACTUAL(Layers, inputs=input_array, outputs=output_array)
+    
 
 
 
     # draw_mnist_digit(random.randint(0,9))
+class NETWORK():
+    def FOWARD(Layers, inputs):
+        x = inputs
+        for layer in Layers:
+            x = layer.foward(x)
+
+    def BACKPROP(Layers, actual):
+        gradient = None
+        for layer in reversed(Layers):
+            if layer == Layers[-1]:
+                gradient = layer.backward1(actual)
+            else:
+                gradient = layer.backward2(gradient, Layers[Layers.index(layer) + 1].weights)
+
+    def UDPATE(Layers, learning_rate):
+        for layer in Layers:
+            layer.update_parameters(learning_rate)
+
+    def TELEMENTARY_PARAMETERS(Layers):
+        for layer in Layers:
+            print("weight(s):", layer.weights, "bias(es):", layer.biases, "Layer index:", Layers.index(layer))
+
+    def TELEMENTARY_PRED_VS_ACTUAL(Layers, inputs, outputs):
+        Cost = 0
+        for index in range(len(inputs)):
+            # print("running")
+            #foward pass
+            NETWORK.FOWARD(Layers, cp.array([[inputs[index]]]))
+
+            pred = Layers[-1].activations
+            actual = cp.array([[outputs[index]]])
+            print("pred", pred, "actual", actual)
+            Cost = (pred - actual) ** 2
+        print(f"Cost: {Cost[0][0]:.3f}")
 
 class LAYER():
     def __init__(self, a, b):
@@ -62,7 +73,7 @@ class LAYER():
 
         #init weights & biases
         if b > 1 or a > 1:
-            self.weights = CUSTOM_ARRAY.random(b, a)
+            self.weights = CUSTOM_ARRAY.ones(b, a)
             self.biases = CUSTOM_ARRAY.zeros(b, 1)
         else:
             self.weights = CUSTOM_ARRAY.single1()
@@ -71,9 +82,10 @@ class LAYER():
     def foward(self, inputs):
         #return activations and store weighted sums, inputs, and dA of z
         self.prev_activations = inputs
+        
         z = cp.dot(self.weights, inputs)
-        if self.output_amt == 1:
-            z = cp.array([z])
+        # if self.output_amt == 1:
+        #     z = cp.array([z])
         z += self.biases
         a = self.activation(z)
         self.weighetd_sums = z
@@ -86,11 +98,12 @@ class LAYER():
         self.gradient = grad
         return grad
 
-    def backword2(self, gradient, after_weights):
-        grad = cp.dot()
+    def backward2(self, gradient, after_weights):
+        grad = cp.dot(after_weights.T, gradient).reshape(self.output_amt, self.input_amt) * self.d_activations
+        self.gradient = grad
+        return grad
 
-    def update_parameters(self):
-        lr = 0.01
+    def update_parameters(self, lr):
         grad = self.gradient
 
         if self.input_amt > 1 or self.output_amt > 1:
@@ -106,10 +119,10 @@ class LAYER():
 
 class CUSTOM_ARRAY():
     def random(rows, columns):
-        return cp.random.randn(rows, columns) * cp.sqrt(2 / columns)
+        return cp.random.randn(rows, columns) * cp.sqrt(2 / rows)
 
     def zeros(rows, columns):
-        return (cp.random.randint(3, size=(rows, columns)) - 1) * cp.sqrt(2 / columns)
+        return (cp.random.randint(3, size=(rows, columns)) - 1) * cp.sqrt(2 / (rows + columns))
 
     def ones(rows, columns):
         return cp.ones((rows, columns))
