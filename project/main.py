@@ -1,6 +1,6 @@
 #Neural Network with GPU and possibly TPU
 #Stoicastic gradient descent
-#version 1.3.3
+#version 1.3.4
 
 import numpy as cp # noqa: I001
 import random
