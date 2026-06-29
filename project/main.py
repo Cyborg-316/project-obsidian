@@ -7,22 +7,23 @@ import random
 from mnist import MNIST
 
 def main():
+    print("---------------RUNNING---------------")
     input_array = cp.array(range(10))
-    output_array = 3 * input_array + 10
+    output_array = input_array ** 2
     print(input_array, output_array)
     
-    Layers = [LAYER(1, 1)]
+    Layers = ARCHITECTURE(1, 11, 1)
 
     NETWORK.TELEMENTARY_PARAMETERS(Layers)
-
-    for epoch in range(400):
+    print("---------------TRAINING--------------")
+    for epoch in range(10000):
         for index in range(len(input_array)):
             NETWORK.FOWARD(Layers, cp.array([[input_array[index]]]))
 
             NETWORK.BACKPROP(Layers, actual = cp.array([[output_array[index]]]))
 
-            NETWORK.UDPATE(Layers, learning_rate=0.01)
-
+            NETWORK.UDPATE(Layers, learning_rate=0.0001)
+    print("---------------COMPLETED-------------")
     NETWORK.TELEMENTARY_PARAMETERS(Layers)
 
     NETWORK.TELEMENTARY_PRED_VS_ACTUAL(Layers, inputs=input_array, outputs=output_array)
@@ -31,6 +32,14 @@ def main():
 
 
     # draw_mnist_digit(random.randint(0,9))
+
+def ARCHITECTURE(*args):
+    neurons = list(args)
+    Layers = []
+    for i in range(len(neurons) - 1):
+        Layers.append(LAYER(neurons[i], neurons[i+1]))
+    return Layers
+
 class NETWORK():
     def FOWARD(Layers, inputs):
         x = inputs
@@ -73,7 +82,7 @@ class LAYER():
 
         #init weights & biases
         if b > 1 or a > 1:
-            self.weights = CUSTOM_ARRAY.ones(b, a)
+            self.weights = CUSTOM_ARRAY.random(b, a)
             self.biases = CUSTOM_ARRAY.zeros(b, 1)
         else:
             self.weights = CUSTOM_ARRAY.single1()
@@ -90,7 +99,7 @@ class LAYER():
         a = self.activation(z)
         self.weighetd_sums = z
         self.activations = a
-        self.d_activations = (a > 0).astype(float)
+        self.d_activations = self.d_activation(z)
         return a
 
     def backward1(self, outputs):
@@ -113,9 +122,11 @@ class LAYER():
             self.weights -= lr * (grad * self.prev_activations)[0]
             self.biases -= lr * grad[0]
 
-
     def activation(self, x):
         return cp.maximum(x, 0)
+
+    def d_activation(self, x):
+        return (x > 0).astype(float)
 
 class CUSTOM_ARRAY():
     def random(rows, columns):
