@@ -1,70 +1,148 @@
 #Neural Network with GPU and possibly TPU
-#version 1.2.1
+#Stoicastic gradient descent
+#version 1.3.4
 
 import numpy as cp # noqa: I001
+import random
 from mnist import MNIST
 
 def main():
+    print("---------------RUNNING---------------")
     input_array = cp.array(range(10))
-    output_array = 2 * input_array + 1
+    output_array = input_array ** 2
+    print(input_array, output_array)
     
-    NNM = network(1, 2, 3, 5)
-    print(NNM.weights, "\n\n\n", NNM.biases)
-    NNM.feed(input_array, output_array)
-    NNM.train(1000, 0.05)
+    Layers = ARCHITECTURE(1, 11, 1)
 
-    draw_mnist_digit(8)
+    NETWORK.TELEMENTARY_PARAMETERS(Layers)
+    print("---------------TRAINING--------------")
+    for epoch in range(10000):
+        for index in range(len(input_array)):
+            NETWORK.FOWARD(Layers, cp.array([[input_array[index]]]))
+
+            NETWORK.BACKPROP(Layers, actual = cp.array([[output_array[index]]]))
+
+            NETWORK.UDPATE(Layers, learning_rate=0.0001)
+    print("---------------COMPLETED-------------")
+    NETWORK.TELEMENTARY_PARAMETERS(Layers)
+
+    NETWORK.TELEMENTARY_PRED_VS_ACTUAL(Layers, inputs=input_array, outputs=output_array)
+    
 
 
 
+    # draw_mnist_digit(random.randint(0,9))
 
+def ARCHITECTURE(*args):
+    neurons = list(args)
+    Layers = []
+    for i in range(len(neurons) - 1):
+        Layers.append(LAYER(neurons[i], neurons[i+1]))
+    return Layers
 
+class NETWORK():
+    def FOWARD(Layers, inputs):
+        x = inputs
+        for layer in Layers:
+            x = layer.foward(x)
 
-class network():
-    def __init__(self, a, b, c, d):
+    def BACKPROP(Layers, actual):
+        gradient = None
+        for layer in reversed(Layers):
+            if layer == Layers[-1]:
+                gradient = layer.backward1(actual)
+            else:
+                gradient = layer.backward2(gradient, Layers[Layers.index(layer) + 1].weights)
+
+    def UDPATE(Layers, learning_rate):
+        for layer in Layers:
+            layer.update_parameters(learning_rate)
+
+    def TELEMENTARY_PARAMETERS(Layers):
+        for layer in Layers:
+            print("weight(s):", layer.weights, "bias(es):", layer.biases, "Layer index:", Layers.index(layer))
+
+    def TELEMENTARY_PRED_VS_ACTUAL(Layers, inputs, outputs):
+        Cost = 0
+        for index in range(len(inputs)):
+            # print("running")
+            #foward pass
+            NETWORK.FOWARD(Layers, cp.array([[inputs[index]]]))
+
+            pred = Layers[-1].activations
+            actual = cp.array([[outputs[index]]])
+            print("pred", pred, "actual", actual)
+            Cost = (pred - actual) ** 2
+        print(f"Cost: {Cost[0][0]:.3f}")
+
+class LAYER():
+    def __init__(self, a, b):
         self.input_amt = a
-        self.hidden_layer_amt = b
-        self.neuron_amt = c
-        self.output_amt = d
+        self.output_amt = b
 
         #init weights & biases
-        weights = []
-        biases = []
-        if b > 0:
-            weights.append(cp.zeros((c, a)))
-            for i in range(b - 1):
-                weights.append(cp.zeros((c, c)))
-            for i in range(b):
-                biases.append(cp.zeros((c, 1)))
-            weights.append(cp.zeros((d, c)))
-            biases.append(cp.zeros((d, 1)))
+        if b > 1 or a > 1:
+            self.weights = CUSTOM_ARRAY.random(b, a)
+            self.biases = CUSTOM_ARRAY.zeros(b, 1)
+        else:
+            self.weights = CUSTOM_ARRAY.single1()
+            self.biases = CUSTOM_ARRAY.single2()
 
-            self.weights = weights
-            self.biases = biases
+    def foward(self, inputs):
+        #return activations and store weighted sums, inputs, and dA of z
+        self.prev_activations = inputs
+        
+        z = cp.dot(self.weights, inputs)
+        # if self.output_amt == 1:
+        #     z = cp.array([z])
+        z += self.biases
+        a = self.activation(z)
+        self.weighetd_sums = z
+        self.activations = a
+        self.d_activations = self.d_activation(z)
+        return a
 
-    def train(self, iterations, lr):
-        for epoch in range(iterations):
-            #pass
-            #back prop
-            #update parameters
-            pass
+    def backward1(self, outputs):
+        grad = 2 * (self.activations - outputs) #* self.d_activations
+        self.gradient = grad
+        return grad
 
-    def feed(self, array_1, array_2):
-        self.input_cache = array_1
-        self.actual_cache = array_2
+    def backward2(self, gradient, after_weights):
+        grad = cp.dot(after_weights.T, gradient).reshape(self.output_amt, self.input_amt) * self.d_activations
+        self.gradient = grad
+        return grad
 
-    def foward(self):
-        #return weighted sums and activations
-        input_amt = self.input_amt
-        layer_amt = self.hidden_layer_amt
-        neuron_amt = self.neuron_amt
-        output_amt = self.output_amt
+    def update_parameters(self, lr):
+        grad = self.gradient
 
-        weightedSums = []
-        activations = []
+        if self.input_amt > 1 or self.output_amt > 1:
+            self.weights -= lr * (grad @ cp.transpose(self.prev_activations))
+            self.biases -= lr * grad
+        else:
+            self.weights -= lr * (grad * self.prev_activations)[0]
+            self.biases -= lr * grad[0]
 
+    def activation(self, x):
+        return cp.maximum(x, 0)
 
+    def d_activation(self, x):
+        return (x > 0).astype(float)
 
+class CUSTOM_ARRAY():
+    def random(rows, columns):
+        return cp.random.randn(rows, columns) * cp.sqrt(2 / rows)
+
+    def zeros(rows, columns):
+        return (cp.random.randint(3, size=(rows, columns)) - 1) * cp.sqrt(2 / (rows + columns))
+
+    def ones(rows, columns):
+        return cp.ones((rows, columns))
+
+    def single1():
+        return cp.array([cp.random.randn() * cp.sqrt(2)])
+
+    def single2():
+        return cp.array([cp.sqrt(2)]) * (random.randint(-1,1))
 
 def draw_mnist_digit(number):
     mndata = MNIST('mnist')
