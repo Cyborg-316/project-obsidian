@@ -24,6 +24,7 @@ def main():
     
 
 
+    learning_rate = 0.0001
 
     # draw_mnist_digit(random.randint(0,9))
     print("\n\n\n\n\n---------------FINISHED--------------")
