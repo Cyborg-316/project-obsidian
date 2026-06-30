@@ -1,6 +1,6 @@
 #Neural Network with GPU and possibly TPU
 #Stoicastic gradient descent
-#version 1.3.4
+#version 1.3.6
 
 import numpy as cp # noqa: I001
 import random
@@ -10,7 +10,16 @@ def main():
     print("---------------RUNNING---------------\n\n\n\n\n")
 
 
-    TRAIN_NETWORK(cp.array([0, 1, 2, 3]), cp.array([1, 5, 9, 13]), (1,1))
+    temp = 10
+    TRAIN_NETWORK(
+        inputs=cp.array(range(temp)), 
+        outputs=cp.array(range(temp))**2, 
+        size=(1,temp,1), 
+        COST="MEAN_SQUARED_ERROR",
+        learning_rate=0.001,
+        iterations=100000,
+        telementary=False
+    )
     
 
 
@@ -18,53 +27,51 @@ def main():
     # draw_mnist_digit(random.randint(0,9))
     print("\n\n\n\n\n---------------FINISHED--------------")
 
-def TRAIN_NETWORK(inputs, outputs, network_layout):
+def TRAIN_NETWORK(inputs, outputs, size, COST, learning_rate, iterations, telementary):
     input_array = inputs
     output_array = outputs
 
-    
+    NET = NETWORK(ARCHITECTURE(size), COST)
 
-    NET = NETWORK(ARCHITECTURE(network_layout))
+    if telementary:
+        NET.TELEMENTARY_PARAMETERS()
+        print("---------------TRAINING--------------")
 
-    NET.TELEMENTARY_PARAMETERS()
-    print("---------------TRAINING--------------")
-    for epoch in range(1000):
+    for epoch in range(iterations):
         for index in range(len(input_array)):
             NET.FOWARD(cp.array([[input_array[index]]]))
 
-            NET.BACKPROP(actual = cp.array([[output_array[index]]]))
+            NET.BACKPROP(actual=cp.array([[output_array[index]]]), COST="MEAN_SQUARED_ERROR")
 
-            NET.UDPATE(learning_rate=0.01)
-    print("---------------COMPLETED-------------")
-    NET.TELEMENTARY_PARAMETERS()
-
+            NET.UDPATE(learning_rate)
+    
+    if telementary:
+        print("---------------COMPLETED-------------")
+        NET.TELEMENTARY_PARAMETERS()
     NET.TELEMENTARY_PRED_VS_ACTUAL(inputs=input_array, outputs=output_array)
 
-
-def ARCHITECTURE(size):
-    neurons = list(size)
+def ARCHITECTURE(Layout):
+    neurons = list(Layout)
     Layers = []
     for i in range(len(neurons) - 1):
-        Layers.append(LAYER(neurons[i], neurons[i+1]))
+        Layers.append(LAYER(neurons[i], neurons[i+1], i, len(neurons) - 1))
     return Layers
 
 class NETWORK():
-    def __init__(self, layers):
+    def __init__(self, layers, COST):
         self.Layers = layers
+        self.cost = COST
 
     def FOWARD(self, inputs):
         x = inputs
         for layer in self.Layers:
             x = layer.foward(x)
 
-    def BACKPROP(self, actual):
+    def BACKPROP(self, actual, COST):
         Layers = self.Layers
         gradient = None
         for layer in reversed(Layers):
-            if layer == Layers[-1]:
-                gradient = layer.backward1(actual)
-            else:
-                gradient = layer.backward2(gradient, Layers[Layers.index(layer) + 1].weights)
+            gradient = layer.backward(gradient, Layers, actual, COST)
 
     def UDPATE(self, learning_rate):
         for layer in self.Layers:
@@ -84,48 +91,52 @@ class NETWORK():
             pred = self.Layers[-1].activations
             actual = cp.array([[outputs[index]]])
             print("pred", pred, "actual", actual)
-            Cost = (pred - actual) ** 2
-        print(f"Cost: {Cost[0][0]:.3f}")
+            Cost += (pred - actual) ** 2
+        print(f"{self.cost}: {Cost[0][0]:.3f}")
 
 class LAYER():
-    def __init__(self, a, b):
+    def __init__(self, a, b, index, layer_amt):
         self.input_amt = a
         self.output_amt = b
+        self.layer_index = index
+        self.total_layer_amt = layer_amt
 
         #init weights & biases
         if b > 1 or a > 1:
-            self.weights = CUSTOM_ARRAY_OPERTATIONS.create_random(b, a)
-            self.biases = CUSTOM_ARRAY_OPERTATIONS.create_zeros(b, 1)
+            self.weights = CUSTOM_ARRAY_OPERATIONS.create_random(b, a)
+            self.biases = CUSTOM_ARRAY_OPERATIONS.create_random(b, 1)
         else:
-            self.weights = CUSTOM_ARRAY_OPERTATIONS.create_single1()
-            self.biases = CUSTOM_ARRAY_OPERTATIONS.create_single2()
+            self.weights = CUSTOM_ARRAY_OPERATIONS.create_single1()
+            self.biases = CUSTOM_ARRAY_OPERATIONS.create_single2()
 
     def foward(self, inputs):
-        #return activations and store weighted sums, inputs, and dA of z
         self.prev_activations = inputs
         
-        z = cp.dot(self.weights, inputs)
-        # if self.output_amt == 1:
-        #     z = cp.array([z])
-        z += self.biases
+        z = cp.dot(self.weights, inputs) + self.biases
         a = self.activation(z)
+
         self.weighetd_sums = z
         self.activations = a
         self.d_activations = self.d_activation(z)
+        self.total_grad = CUSTOM_ARRAY_OPERATIONS.create_zeros(self.output_amt, 1)
         return a
 
-    def backward1(self, outputs):
-        grad = 2 * (self.activations - outputs) #* self.d_activations
-        self.gradient = grad
-        return grad
+    def backward(self, gradient, Layers, outputs, COST):
+        if self.layer_index == self.total_layer_amt - 1:
+            if COST == "MEAN_SQUARED_ERROR":
+                    grad = 2 * (self.activations - outputs) #* self.d_activations
+                    self.gradient = grad
+                    return grad
+            elif COST == "CROSS_ENTROPY_LOSS":
+                pass
 
-    def backward2(self, gradient, after_weights):
+        after_weights = Layers[Layers.index(self) + 1].weights
         grad = cp.dot(after_weights.T, gradient).reshape(self.output_amt, self.input_amt) * self.d_activations
-        self.gradient = grad
+        self.total_grad += grad
         return grad
 
     def update_parameters(self, lr):
-        grad = self.gradient
+        grad = self.total_grad
 
         if self.input_amt > 1 or self.output_amt > 1:
             self.weights -= lr * (grad @ cp.transpose(self.prev_activations))
@@ -140,12 +151,12 @@ class LAYER():
     def d_activation(self, x):
         return (x > 0).astype(float)
 
-class CUSTOM_ARRAY_OPERTATIONS():
+class CUSTOM_ARRAY_OPERATIONS():
     def create_random(rows, columns):
         return cp.random.randn(rows, columns) * cp.sqrt(2 / rows)
 
     def create_zeros(rows, columns):
-        return (cp.random.randint(3, size=(rows, columns)) - 1) * cp.sqrt(2 / (rows + columns))
+        return cp.zeros((rows, columns))
 
     def create_ones(rows, columns):
         return cp.ones((rows, columns))
