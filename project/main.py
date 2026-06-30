@@ -4,6 +4,7 @@
 
 import numpy as cp # noqa: I001
 import random
+import random
 from mnist import MNIST
 
 def main():
@@ -204,3 +205,4 @@ def draw_char(char):
         print("  ", end = "")
 
 main()
+
