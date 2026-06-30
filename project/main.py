@@ -1,52 +1,64 @@
 #Neural Network with GPU and possibly TPU
 #Stoicastic gradient descent
-#version 1.3.4
+#version 1.3.5
 
 import numpy as cp # noqa: I001
 import random
 from mnist import MNIST
 
 def main():
-    print("---------------RUNNING---------------")
-    input_array = cp.array(range(10))
-    output_array = input_array ** 2
-    print(input_array, output_array)
-    
-    Layers = ARCHITECTURE(1, 11, 1)
+    print("---------------RUNNING---------------\n\n\n\n\n")
 
-    NETWORK.TELEMENTARY_PARAMETERS(Layers)
-    print("---------------TRAINING--------------")
-    for epoch in range(10000):
-        for index in range(len(input_array)):
-            NETWORK.FOWARD(Layers, cp.array([[input_array[index]]]))
 
-            NETWORK.BACKPROP(Layers, actual = cp.array([[output_array[index]]]))
-
-            NETWORK.UDPATE(Layers, learning_rate=0.0001)
-    print("---------------COMPLETED-------------")
-    NETWORK.TELEMENTARY_PARAMETERS(Layers)
-
-    NETWORK.TELEMENTARY_PRED_VS_ACTUAL(Layers, inputs=input_array, outputs=output_array)
+    TRAIN_NETWORK(cp.array([0, 1, 2, 3]), cp.array([1, 5, 9, 13]), (1,1))
     
 
 
 
     # draw_mnist_digit(random.randint(0,9))
+    print("\n\n\n\n\n---------------FINISHED--------------")
 
-def ARCHITECTURE(*args):
-    neurons = list(args)
+def TRAIN_NETWORK(inputs, outputs, network_layout):
+    input_array = inputs
+    output_array = outputs
+
+    
+
+    NET = NETWORK(ARCHITECTURE(network_layout))
+
+    NET.TELEMENTARY_PARAMETERS()
+    print("---------------TRAINING--------------")
+    for epoch in range(1000):
+        for index in range(len(input_array)):
+            NET.FOWARD(cp.array([[input_array[index]]]))
+
+            NET.BACKPROP(actual = cp.array([[output_array[index]]]))
+
+            NET.UDPATE(learning_rate=0.01)
+    print("---------------COMPLETED-------------")
+    NET.TELEMENTARY_PARAMETERS()
+
+    NET.TELEMENTARY_PRED_VS_ACTUAL(inputs=input_array, outputs=output_array)
+
+
+def ARCHITECTURE(size):
+    neurons = list(size)
     Layers = []
     for i in range(len(neurons) - 1):
         Layers.append(LAYER(neurons[i], neurons[i+1]))
     return Layers
 
 class NETWORK():
-    def FOWARD(Layers, inputs):
+    def __init__(self, layers):
+        self.Layers = layers
+
+    def FOWARD(self, inputs):
         x = inputs
-        for layer in Layers:
+        for layer in self.Layers:
             x = layer.foward(x)
 
-    def BACKPROP(Layers, actual):
+    def BACKPROP(self, actual):
+        Layers = self.Layers
         gradient = None
         for layer in reversed(Layers):
             if layer == Layers[-1]:
@@ -54,22 +66,22 @@ class NETWORK():
             else:
                 gradient = layer.backward2(gradient, Layers[Layers.index(layer) + 1].weights)
 
-    def UDPATE(Layers, learning_rate):
-        for layer in Layers:
+    def UDPATE(self, learning_rate):
+        for layer in self.Layers:
             layer.update_parameters(learning_rate)
 
-    def TELEMENTARY_PARAMETERS(Layers):
+    def TELEMENTARY_PARAMETERS(self):
+        Layers = self.Layers
         for layer in Layers:
             print("weight(s):", layer.weights, "bias(es):", layer.biases, "Layer index:", Layers.index(layer))
 
-    def TELEMENTARY_PRED_VS_ACTUAL(Layers, inputs, outputs):
+    def TELEMENTARY_PRED_VS_ACTUAL(self, inputs, outputs):
         Cost = 0
         for index in range(len(inputs)):
             # print("running")
             #foward pass
-            NETWORK.FOWARD(Layers, cp.array([[inputs[index]]]))
-
-            pred = Layers[-1].activations
+            self.FOWARD(cp.array([[inputs[index]]]))
+            pred = self.Layers[-1].activations
             actual = cp.array([[outputs[index]]])
             print("pred", pred, "actual", actual)
             Cost = (pred - actual) ** 2
@@ -82,11 +94,11 @@ class LAYER():
 
         #init weights & biases
         if b > 1 or a > 1:
-            self.weights = CUSTOM_ARRAY.random(b, a)
-            self.biases = CUSTOM_ARRAY.zeros(b, 1)
+            self.weights = CUSTOM_ARRAY_OPERTATIONS.create_random(b, a)
+            self.biases = CUSTOM_ARRAY_OPERTATIONS.create_zeros(b, 1)
         else:
-            self.weights = CUSTOM_ARRAY.single1()
-            self.biases = CUSTOM_ARRAY.single2()
+            self.weights = CUSTOM_ARRAY_OPERTATIONS.create_single1()
+            self.biases = CUSTOM_ARRAY_OPERTATIONS.create_single2()
 
     def foward(self, inputs):
         #return activations and store weighted sums, inputs, and dA of z
@@ -128,21 +140,33 @@ class LAYER():
     def d_activation(self, x):
         return (x > 0).astype(float)
 
-class CUSTOM_ARRAY():
-    def random(rows, columns):
+class CUSTOM_ARRAY_OPERTATIONS():
+    def create_random(rows, columns):
         return cp.random.randn(rows, columns) * cp.sqrt(2 / rows)
 
-    def zeros(rows, columns):
+    def create_zeros(rows, columns):
         return (cp.random.randint(3, size=(rows, columns)) - 1) * cp.sqrt(2 / (rows + columns))
 
-    def ones(rows, columns):
+    def create_ones(rows, columns):
         return cp.ones((rows, columns))
 
-    def single1():
+    def create_single1():
         return cp.array([cp.random.randn() * cp.sqrt(2)])
 
-    def single2():
+    def create_single2():
         return cp.array([cp.sqrt(2)]) * (random.randint(-1,1))
+
+    def softmax(matrix):
+        mat = cp.exp(matrix)
+        sum = mat_sum(mat)
+        return mat * (1 / sum)
+
+    def cross_entropy(matrix_p, matrix_q):
+        if (matrix_p.shape != matrix_q.shape):
+            return False
+
+        mat = cp.multiply(matrix_p, cp.log(matrix_q))
+        return -cp.sum(mat)
 
 def draw_mnist_digit(number):
     mndata = MNIST('mnist')
