@@ -1,6 +1,6 @@
 #Neural Network with GPU and possibly TPU
 #Stoicastic gradient descent
-#version 1.3.6
+#version 1.3.7
 
 import numpy as cp # noqa: I001
 import random
@@ -10,33 +10,26 @@ from mnist import MNIST
 def main():
     print("---------------RUNNING---------------\n\n\n\n\n")
 
-    mndata = MNIST('mnist')
-    # train_images = images[:50000]
-    # train_labels = labels[:50000]
-    # test_images = images[50000:]
-    # test_labels = labels[50000:]
+    # mndata = MNIST('mnist')
 
-    images, labels = mndata.load_training()
+    # training_images, training_labels = mndata.load_training()
+    # testing_images, testing_labels = mndata.load_testing()
 
+    # print(len(training_images), len(training_labels))
+    # print(len(testing_images), len(testing_labels))
 
-    draw_mnist_digit(images[0])
-    mndata.process_images_to_numpy(images)
+    inputs = [cp.array([1, 0, 3]), cp.array([5, -3, 2]), cp.array([0, 1, -1])]
+    # inputs = inputs
 
-
-
-    inputs = mndata.process_images_to_numpy(images)
-    outputs = mndata.process_labels(labels)
-    print(outputs[0])
-
-    # TRAIN_NETWORK(
-    #     inputs, 
-    #     outputs, 
-    #     size=(1,temp,1), 
-    #     COST="MEAN_SQUARED_ERROR",
-    #     learning_rate=0.001,
-    #     iterations=10000,
-    #     telementary=False
-    # )
+    TRAIN_NETWORK(
+        inputs, 
+        cp.array([4, 4, 0]), 
+        size=(3,1), 
+        COST="MEAN_SQUARED_ERROR",
+        learning_rate=0.01,
+        iterations=1000,
+        telementary=True
+    )
 
     print("\n\n\n\n\n---------------FINISHED--------------")
 
@@ -52,7 +45,7 @@ def TRAIN_NETWORK(inputs, outputs, size, COST, learning_rate, iterations, teleme
 
     for epoch in range(iterations):
         for index in range(len(input_array)):
-            NET.FOWARD(cp.array([[input_array[index]]]))
+            NET.FOWARD(cp.array(input_array[index]))
 
             NET.BACKPROP(actual=cp.array([[output_array[index]]]), COST="MEAN_SQUARED_ERROR")
 
@@ -71,9 +64,9 @@ def ARCHITECTURE(Layout):
     return Layers
 
 class NETWORK():
-    def __init__(self, layers, COST):
+    def __init__(self, layers, cost):
         self.Layers = layers
-        self.cost = COST
+        self.cost = cost
 
     def FOWARD(self, inputs):
         x = inputs
@@ -116,47 +109,45 @@ class LAYER():
 
         #init weights & biases
         if b > 1 or a > 1:
-            self.weights = CUSTOM_ARRAY_OPERATIONS.create_random(b, a)
-            self.biases = CUSTOM_ARRAY_OPERATIONS.create_random(b, 1)
+            self.weights = CUSTOM_ARRAY_OPERATIONS.create_random(b, a) + .1
+            self.biases = CUSTOM_ARRAY_OPERATIONS.create_random(b, 1) + .1
         else:
             self.weights = CUSTOM_ARRAY_OPERATIONS.create_single1()
             self.biases = CUSTOM_ARRAY_OPERATIONS.create_single2()
 
     def foward(self, inputs):
-        self.prev_activations = inputs
+        transposed_inputs = inputs.reshape(-1, 1)
+        self.prev_activations = transposed_inputs
         
-        z = cp.dot(self.weights, inputs) + self.biases
+        z = cp.dot(self.weights, transposed_inputs) + self.biases
         a = self.activation(z)
-
+        
         self.weighetd_sums = z
         self.activations = a
         self.d_activations = self.d_activation(z)
         self.total_grad = CUSTOM_ARRAY_OPERATIONS.create_zeros(self.output_amt, 1)
         return a
 
-    def backward(self, gradient, Layers, outputs, COST):
+    def backward(self, gradients, Layers, outputs, COST):
         if self.layer_index == self.total_layer_amt - 1:
             if COST == "MEAN_SQUARED_ERROR":
-                    grad = 2 * (self.activations - outputs) #* self.d_activations
+                    grad = 2 * (self.activations - outputs) * self.d_activations
                     self.gradient = grad
                     return grad
             elif COST == "CROSS_ENTROPY_LOSS":
                 pass
 
         after_weights = Layers[Layers.index(self) + 1].weights
-        grad = cp.dot(after_weights.T, gradient).reshape(self.output_amt, self.input_amt) * self.d_activations
-        self.total_grad += grad
+        grad = cp.dot(after_weights.T, gradients).reshape(self.output_amt, self.input_amt) * self.d_activations
+        self.gradient = grad
         return grad
 
     def update_parameters(self, lr):
-        grad = self.total_grad
+        grad = self.gradient
+        #print(grad)
 
-        if self.input_amt > 1 or self.output_amt > 1:
-            self.weights -= lr * (grad @ cp.transpose(self.prev_activations))
-            self.biases -= lr * grad
-        else:
-            self.weights -= lr * (grad * self.prev_activations)[0]
-            self.biases -= lr * grad[0]
+        self.weights -= lr * (grad @ cp.atleast_2d(self.prev_activations).T)
+        self.biases -= lr * grad
 
     def activation(self, x):
         return cp.maximum(x, 0)
