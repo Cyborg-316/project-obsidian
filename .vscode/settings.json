@@ -1,0 +1,5 @@
+{
+    "editor.codeActionWidget.includeNearbyQuickFixes": true,
+    "editor.codeLens": false,
+    "python.REPL.enableREPLSmartSend": false
+}

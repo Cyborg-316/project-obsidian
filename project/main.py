@@ -1,16 +1,25 @@
-#Neural Network with GPU and possibly TPU
+#Neural Network
 #Stoicastic gradient descent
-#version 1.3.7
+#version 1.4.0
 
-import numpy as cp # noqa: I001
+import numpy as np # noqa: I001
 import random
-import random
+import time
 from mnist import MNIST
 
-def main():
-    print("---------------RUNNING---------------\n\n\n\n\n")
 
-    # mndata = MNIST('mnist')
+def main():
+    size = (1,10,10, 5, 5)
+    types = ["Dense", "Activation", "Dense", "Activation", "Cost"]
+    net = NETWORK()
+
+    print(net.Layers)
+    inputs = np.arange(5)
+    outputs = inputs * 4 + 1
+
+
+
+    mndata = MNIST('mnist')
 
     # training_images, training_labels = mndata.load_training()
     # testing_images, testing_labels = mndata.load_testing()
@@ -18,183 +27,116 @@ def main():
     # print(len(training_images), len(training_labels))
     # print(len(testing_images), len(testing_labels))
 
-    inputs = [cp.array([1, 0, 3]), cp.array([5, -3, 2]), cp.array([0, 1, -1])]
-    # inputs = inputs
+class NETWORK:
+    #Values represent default config
+    def __init__(self, size=(1,1), types=["Dense"], loss="MEAN_SQUARED_ERROR", activation="RELU"):
+        self.loss = loss
+        self.Layers = architecture(size, types, loss, activation)
 
-    TRAIN_NETWORK(
-        inputs, 
-        cp.array([4, 4, 0]), 
-        size=(3,1), 
-        COST="MEAN_SQUARED_ERROR",
-        learning_rate=0.01,
-        iterations=1000,
-        telementary=True
-    )
+    def train(self, input_cache, output_cache, epochs=1000, lr=0.01):
+        for epoch in range(epochs):
+            for index in range(len(input_cache)):
+                inputs = input_cache[index]
+                outputs = output_cache[index]
 
-    print("\n\n\n\n\n---------------FINISHED--------------")
+                x = inputs
+                for layer in self.Layers:
+                    x = layer.foward(x)
 
-def TRAIN_NETWORK(inputs, outputs, size, COST, learning_rate, iterations, telementary):
-    input_array = inputs
-    output_array = outputs
+                grad = Layers[-1].backprop()
 
-    NET = NETWORK(ARCHITECTURE(size), COST)
+            #update
 
-    if telementary:
-        NET.TELEMENTARY_PARAMETERS()
-        print("---------------TRAINING--------------")
+    def test(self, input_cache, output_cache):
+        pass
 
-    for epoch in range(iterations):
-        for index in range(len(input_array)):
-            NET.FOWARD(cp.array(input_array[index]))
+    def optimizer(self):
+        pass
 
-            NET.BACKPROP(actual=cp.array([[output_array[index]]]), COST="MEAN_SQUARED_ERROR")
-
-            NET.UDPATE(learning_rate)
-    
-    if telementary:
-        print("---------------COMPLETED-------------")
-        NET.TELEMENTARY_PARAMETERS()
-    NET.TELEMENTARY_PRED_VS_ACTUAL(inputs=input_array, outputs=output_array)
-
-def ARCHITECTURE(Layout):
-    neurons = list(Layout)
-    Layers = []
-    for i in range(len(neurons) - 1):
-        Layers.append(LAYER(neurons[i], neurons[i+1], i, len(neurons) - 1))
-    return Layers
-
-class NETWORK():
-    def __init__(self, layers, cost):
-        self.Layers = layers
-        self.cost = cost
-
-    def FOWARD(self, inputs):
-        x = inputs
-        for layer in self.Layers:
-            x = layer.foward(x)
-
-    def BACKPROP(self, actual, COST):
-        Layers = self.Layers
-        gradient = None
-        for layer in reversed(Layers):
-            gradient = layer.backward(gradient, Layers, actual, COST)
-
-    def UDPATE(self, learning_rate):
-        for layer in self.Layers:
-            layer.update_parameters(learning_rate)
-
-    def TELEMENTARY_PARAMETERS(self):
-        Layers = self.Layers
-        for layer in Layers:
-            print("weight(s):", layer.weights, "bias(es):", layer.biases, "Layer index:", Layers.index(layer))
-
-    def TELEMENTARY_PRED_VS_ACTUAL(self, inputs, outputs):
-        Cost = 0
-        for index in range(len(inputs)):
-            # print("running")
-            #foward pass
-            self.FOWARD(cp.array([[inputs[index]]]))
-            pred = self.Layers[-1].activations
-            actual = cp.array([[outputs[index]]])
-            print("pred", pred, "actual", actual)
-            Cost += (pred - actual) ** 2
-        print(f"{self.cost}: {Cost[0][0]:.3f}")
-
-class LAYER():
-    def __init__(self, a, b, index, layer_amt):
-        self.input_amt = a
-        self.output_amt = b
-        self.layer_index = index
-        self.total_layer_amt = layer_amt
-
-        #init weights & biases
-        if b > 1 or a > 1:
-            self.weights = CUSTOM_ARRAY_OPERATIONS.create_random(b, a) + .1
-            self.biases = CUSTOM_ARRAY_OPERATIONS.create_random(b, 1) + .1
-        else:
-            self.weights = CUSTOM_ARRAY_OPERATIONS.create_single1()
-            self.biases = CUSTOM_ARRAY_OPERATIONS.create_single2()
+class DENSE_LAYER:
+    def __init__(self, num_inputs, num_outputs):
+        self.weights = np.random.randn(num_outputs, num_inputs)
+        self.biases = np.random.randn(num_outputs, 1)
 
     def foward(self, inputs):
-        transposed_inputs = inputs.reshape(-1, 1)
-        self.prev_activations = transposed_inputs
-        
-        z = cp.dot(self.weights, transposed_inputs) + self.biases
-        a = self.activation(z)
-        
-        self.weighetd_sums = z
-        self.activations = a
-        self.d_activations = self.d_activation(z)
-        self.total_grad = CUSTOM_ARRAY_OPERATIONS.create_zeros(self.output_amt, 1)
+        z = self.weights @ inputs + self.biases
+        self.inputs = inputs
+        self.outputs = z
+        return z
+
+    def backprop(self, following_layer):
+        pass
+
+class ACTIVATION_LAYER:
+    def __init__(self, activation_type):
+        self.activation = activation_type
+
+    def foward(self, inputs, type):
+        self.inputs = inputs
+        a = None
+        if self.activation == "RELU":
+            a = np.max(inputs, 0)
+        elif self.activation == "SIGMOID":
+            a =  1 / (1 + np.exp(-inputs))
+        self.outputs = a
         return a
 
-    def backward(self, gradients, Layers, outputs, COST):
-        if self.layer_index == self.total_layer_amt - 1:
-            if COST == "MEAN_SQUARED_ERROR":
-                    grad = 2 * (self.activations - outputs) * self.d_activations
-                    self.gradient = grad
-                    return grad
-            elif COST == "CROSS_ENTROPY_LOSS":
-                pass
+    def backprop(self, following_layer):
+        pass
 
-        after_weights = Layers[Layers.index(self) + 1].weights
-        grad = cp.dot(after_weights.T, gradients).reshape(self.output_amt, self.input_amt) * self.d_activations
-        self.gradient = grad
-        return grad
+class COST_LAYER:
+    def __init__(self, cost_type):
+        self.cost = cost_type
 
-    def update_parameters(self, lr):
-        grad = self.gradient
-        #print(grad)
+    def foward(self, inputs, outputs):
+        self.inputs = inputs
+        c = None
+        if self.cost == "MEAN_SQUARED_ERROR":
+            c = np.sum(np.sub(outputs, inputs) ** 2)
+        elif self.cost == "CROSS_ENTROPY":
+            c = cross_entropy(softmax(inputs), outputs)
+        self.outputs = c
+        return c
 
-        self.weights -= lr * (grad @ cp.atleast_2d(self.prev_activations).T)
-        self.biases -= lr * grad
+    def backprop(self, outputs):
+        pass
+   
+def architecture(size, types, loss, activation_type):
+    Layers = []
+    for index, type in enumerate(types):
+        if type == "Dense":
+            Layers.append(DENSE_LAYER(size[index], size[index + 1]))
+        elif type == "Activation":
+            Layers.append(ACTIVATION_LAYER(activation_type))
+        elif type == "Cost":
+            Layers.append(COST_LAYER(loss))
+    return Layers
 
-    def activation(self, x):
-        return cp.maximum(x, 0)
+def softmax(matrix):
+    mat = np.exp(matrix)
+    sum = np.sum(mat)
+    return mat * (1 / sum)
 
-    def d_activation(self, x):
-        return (x > 0).astype(float)
+def cross_entropy(matrix_p, matrix_q):
+    if (matrix_p.shape != matrix_q.shape):
+        return False
 
-class CUSTOM_ARRAY_OPERATIONS():
-    def create_random(rows, columns):
-        return cp.random.randn(rows, columns) * cp.sqrt(2 / rows)
-
-    def create_zeros(rows, columns):
-        return cp.zeros((rows, columns))
-
-    def create_ones(rows, columns):
-        return cp.ones((rows, columns))
-
-    def create_single1():
-        return cp.array([cp.random.randn() * cp.sqrt(2)])
-
-    def create_single2():
-        return cp.array([cp.sqrt(2)]) * (random.randint(-1,1))
-
-    def softmax(matrix):
-        mat = cp.exp(matrix)
-        sum = mat_sum(mat)
-        return mat * (1 / sum)
-
-    def cross_entropy(matrix_p, matrix_q):
-        if (matrix_p.shape != matrix_q.shape):
-            return False
-
-        mat = cp.multiply(matrix_p, cp.log(matrix_q))
-        return -cp.sum(mat)
+    mat = np.multiply(matrix_p, np.log(matrix_q))
+    return -np.sum(mat)
 
 def draw_mnist_digit(image_list):
     for x in range(28):
         print("|", end = "")
         for y in range(28):
-            draw_char(image_list[y + 28 * x])
+            char = image_list[y + 28 * x]
+            if char > 0:
+                    print("0 ", end = "")
+            else:
+                print("  ", end = "")
         print("|")
 
-def draw_char(char):
-    if char > 0:
-        print("0 ", end = "")
-    else:
-        print("  ", end = "")
-
+start = time.perf_counter()
+print("\n---------------RUNNING---------------\n\n\n\n\n")
 main()
-
+end = time.perf_counter()
+print(f"\n-----FINISHED--IN--{(end - start):.9f}s------\n")
