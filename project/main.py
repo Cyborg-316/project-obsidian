@@ -7,16 +7,34 @@ import random
 import time
 from mnist import MNIST
 
+#main
+    #Network call
+
+#Network Class
+    #dense_layer call
+    #activation_layer call
+    #cost_layer call
+
+#Layer Classes
+    #Foward
+    #backprop
+    #update
+
 
 def main():
     size = (1,10,10, 5, 5)
     types = ["Dense", "Activation", "Dense", "Activation", "Cost"]
-    net = NETWORK()
+    net = NETWORK(size, types)
 
     print(net.Layers)
-    inputs = np.arange(5)
+    inputs = np.array([[4]])
     outputs = inputs * 4 + 1
+    print(inputs, "\n", outputs)
 
+    net.optimizer("STOICHASTIC_GRADIENT_DECSENT")
+    net.train(inputs, outputs)
+
+    net.test(inputs, outputs)
 
 
     mndata = MNIST('mnist')
@@ -34,24 +52,78 @@ class NETWORK:
         self.Layers = architecture(size, types, loss, activation)
 
     def train(self, input_cache, output_cache, epochs=1000, lr=0.01):
-        for epoch in range(epochs):
-            for index in range(len(input_cache)):
-                inputs = input_cache[index]
-                outputs = output_cache[index]
+        if self.optimizer == "STOICHASTIC_GRADIENT_DECSENT":
+            for epoch in range(epochs):
+                for index in range(len(input_cache)):
+                    inputs = input_cache[index]
+                    outputs = output_cache[index]
 
-                x = inputs
-                for layer in self.Layers:
-                    x = layer.foward(x)
+                    #foward
+                    x = inputs
+                    for index, layer in enumerate(self.Layers):
+                        if not index == len(self.Layers) - 1:
+                            x = layer.foward(x)
 
-                grad = Layers[-1].backprop()
+                    #backward
+                    following_layer = self.Layers[-1]
+                    grad = following_layer.backprop(outputs)
+                    
+                    for index, layer in enumerate(reversed(self.Layers)):
+                        if not index == 0:
+                            grad = layer.backprop(following_layer)
+                            following_layer = layer
 
-            #update
+                    #update parameters
+
+        elif self.optimizer == "GRADIENT_DECSENT":
+            for epoch in range(epochs):
+                #set gradients to zero
+                for index in range(len(input_cache)):
+                    inputs = input_cache[index]
+                    outputs = output_cache[index]
+
+                    #foward
+                    x = inputs
+                    for layer in self.Layers:
+                        x = layer.foward(x)
+
+                    #backward
+                    following_layer = self.Layers[-1]
+                    grad = following_layer.backprop(outputs)
+                    
+                    for index, layer in enumerate(reversed(self.Layers)):
+                        if not index == 0:
+                            grad = layer.backprop(following_layer)
+                            following_layer = layer
+
+                    #update gradients
+
+                #update parameters
+        
+        elif self.optimizer == "MOMENTUM":
+            #momentum gradient descent here
+            pass
+
+        else:
+            print("Please enter a optimizer for training")
 
     def test(self, input_cache, output_cache):
-        pass
+        for index, inputs in enumerate(input_cache):
+            x = inputs
+            o = output_cache[index]
+            for index, layer in enumerate(self.Layers):
+                if not index == len(self.Layers) - 1:
+                    x = layer.foward(x)
+            cost = self.Layers[-1].foward(x, o)
+            print(f"Predicted: {x:.4f} Actual: {o:.6f} Cost: {cost:.6f}")
 
-    def optimizer(self):
-        pass
+    def optimizer(self, type):
+        if type == "STOICHASTIC_GRADIENT_DECSENT":
+            self.optimizer = type
+        elif type == "GRADIENT_DECSENT":
+            self.optimizer = type
+        elif type == "MOMENTUM":
+            self.optimizer = type
 
 class DENSE_LAYER:
     def __init__(self, num_inputs, num_outputs):
@@ -71,7 +143,7 @@ class ACTIVATION_LAYER:
     def __init__(self, activation_type):
         self.activation = activation_type
 
-    def foward(self, inputs, type):
+    def foward(self, inputs):
         self.inputs = inputs
         a = None
         if self.activation == "RELU":
@@ -92,9 +164,9 @@ class COST_LAYER:
         self.inputs = inputs
         c = None
         if self.cost == "MEAN_SQUARED_ERROR":
-            c = np.sum(np.sub(outputs, inputs) ** 2)
+            c = np.sum((outputs - inputs) ** 2)
         elif self.cost == "CROSS_ENTROPY":
-            c = cross_entropy(softmax(inputs), outputs)
+            c = cross_entropy(outputs, inputs)
         self.outputs = c
         return c
 
