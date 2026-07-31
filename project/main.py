@@ -26,19 +26,19 @@ from mnist import MNIST
 
 def main():
     size = (1,10,1)
-    net = NETWORK()
+    net = NETWORK(size)
 
     print(net.Layers)
-    inputs = np.array([[4]])
-    outputs = inputs * 4 + 1
-    print(inputs, "\n", outputs)
+    input_cache = np.array([[4], [3], [2], [-3]])
+    output_cache = input_cache ** 2
+    print(input_cache, "\n", output_cache)
 
     net.optimizer("STOICHASTIC_GRADIENT_DECSENT")
     net.telementary()
-    net.train(inputs, outputs)
+    net.train(input_cache, output_cache)
 
     net.telementary()
-    net.test(inputs, outputs)
+    net.test(input_cache, output_cache)
 
 
     mndata = MNIST('mnist')
@@ -51,11 +51,11 @@ def main():
 
 class NETWORK:
     #Values represent default config
-    def __init__(self, size=(1,1), loss="MEAN_SQUARED_ERROR", activation="NONE"):
+    def __init__(self, size=(1,1), loss="MEAN_SQUARED_ERROR", activation="RELU"):
         self.loss = loss
         self.Layers = architecture(size, loss, activation)
 
-    def train(self, input_cache, output_cache, epochs=1000, lr=0.01):
+    def train(self, input_cache, output_cache, epochs=2000, lr=0.001):
         if self.optimizer == "STOICHASTIC_GRADIENT_DECSENT":
             for epoch in range(epochs):
                 for index in range(len(input_cache)):
@@ -108,7 +108,7 @@ class NETWORK:
         for index, layer in enumerate(self.Layers):
             if index < len(self.Layers) - 1:
                 x = layer.foward(x)
-        self.Layers[-1].foward(inputs, outputs)
+        self.Layers[-1].foward(x, outputs)
 
     def foward_return(self, inputs, outputs):
         x = inputs
@@ -147,7 +147,7 @@ class NETWORK:
             try:
                 predicted[0][0]
             except:
-                print(f"Predicted: {predicted:.4f}    Actual: {outputs[0]:.6f}    Cost: {cost:.6f}")
+                print(f"Predicted: {predicted[0]:.4f}    Actual: {outputs[0]:.6f}    Cost: {cost:.6f}")
             else:
                 print(f"Predicted: {predicted[0][0]:.4f}    Actual: {outputs[0]:.6f}    Cost: {cost:.6f}")
 
@@ -168,10 +168,11 @@ class DENSE_LAYER:
 
     def foward(self, inputs):
         self.inputs = inputs
-        z = self.weights @ inputs + self.biases
+        z = np.dot(self.weights, inputs)
+        z += self.biases
         a = None
         if self.activation == "RELU":
-            a = np.max(z)
+            a = np.max(z, 0)
         elif self.activation == "SIGMOID":
             a =  1 / (1 + np.exp(-z))
         elif self.activation == "NONE":
@@ -187,13 +188,11 @@ class DENSE_LAYER:
         print(self.biases)
 
     def backprop(self, following_layer):
-        #activations only
         partial_derivative = None
         if self.activation == "RELU":
-            partial_derivative = (self.weighted_sums > 1).astype(dtype=float)
+            partial_derivative = (self.weighted_sums > 0).astype(dtype=float)
         elif self.activation == "SIGMOID":
-            inside = (1 + np.exp(-self.weighted_sums))
-            partial_derivative = (1 / inside) * ( 1 - (1 / inside))
+            partial_derivative = self.outputs * ( 1 - self.outputs)
         elif self.activation == "NONE":
             partial_derivative = 1
 
@@ -201,17 +200,14 @@ class DENSE_LAYER:
         if not following_layer.type == "Cost":
             aft_weights = following_layer.weights
 
-            self.deltas = aft_weights @ aft_deltas * partial_derivative
+            self.deltas = np.transpose(aft_weights) @ aft_deltas * partial_derivative
         else:
             self.deltas = aft_deltas * partial_derivative
-
-
         
     def update_parameters(self, lr):
-        #update weights and biases here
         self.biases = self.biases - lr * self.deltas
 
-        self.weights = self.weights - lr * self.inputs @ np.transpose(self.deltas)
+        self.weights = self.weights - lr * np.outer(self.inputs, self.deltas)
 
 class COST_LAYER:
     def __init__(self, cost_type):
@@ -230,7 +226,7 @@ class COST_LAYER:
 
     def backprop(self, outputs):
         if self.cost == "MEAN_SQUARED_ERROR":
-            self.deltas = 2 * (outputs - self.predicted)
+            self.deltas = 2 * (self.predicted - outputs)
         elif self.cost == "CROSS_ENTROPY":
             pass
   
