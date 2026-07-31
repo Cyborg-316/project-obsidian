@@ -20,11 +20,13 @@ from mnist import MNIST
     #backprop
     #update
 
+#to do:
+#add backprop
+#add update parameters
 
 def main():
-    size = (1,10,10, 5, 5)
-    types = ["Dense", "Activation", "Dense", "Activation", "Cost"]
-    net = NETWORK(size, types)
+    size = (1,10,1)
+    net = NETWORK()
 
     print(net.Layers)
     inputs = np.array([[4]])
@@ -32,8 +34,10 @@ def main():
     print(inputs, "\n", outputs)
 
     net.optimizer("STOICHASTIC_GRADIENT_DECSENT")
+    net.telementary()
     net.train(inputs, outputs)
 
+    net.telementary()
     net.test(inputs, outputs)
 
 
@@ -47,9 +51,9 @@ def main():
 
 class NETWORK:
     #Values represent default config
-    def __init__(self, size=(1,1), types=["Dense"], loss="MEAN_SQUARED_ERROR", activation="RELU"):
+    def __init__(self, size=(1,1), loss="MEAN_SQUARED_ERROR", activation="NONE"):
         self.loss = loss
-        self.Layers = architecture(size, types, loss, activation)
+        self.Layers = architecture(size, loss, activation)
 
     def train(self, input_cache, output_cache, epochs=1000, lr=0.01):
         if self.optimizer == "STOICHASTIC_GRADIENT_DECSENT":
@@ -59,21 +63,13 @@ class NETWORK:
                     outputs = output_cache[index]
 
                     #foward
-                    x = inputs
-                    for index, layer in enumerate(self.Layers):
-                        if not index == len(self.Layers) - 1:
-                            x = layer.foward(x)
+                    self.foward_pass(inputs, outputs)
 
                     #backward
-                    following_layer = self.Layers[-1]
-                    grad = following_layer.backprop(outputs)
-                    
-                    for index, layer in enumerate(reversed(self.Layers)):
-                        if not index == 0:
-                            grad = layer.backprop(following_layer)
-                            following_layer = layer
+                    self.backprop(outputs)
 
                     #update parameters
+                    self.update_parameters(lr)
 
         elif self.optimizer == "GRADIENT_DECSENT":
             for epoch in range(epochs):
@@ -107,15 +103,53 @@ class NETWORK:
         else:
             print("Please enter a optimizer for training")
 
+    def foward_pass(self, inputs, outputs):
+        x = inputs
+        for index, layer in enumerate(self.Layers):
+            if index < len(self.Layers) - 1:
+                x = layer.foward(x)
+        self.Layers[-1].foward(inputs, outputs)
+
+    def foward_return(self, inputs, outputs):
+        x = inputs
+        for index, layer in enumerate(self.Layers):
+            if index < len(self.Layers) - 1:
+                x = layer.foward(x)
+        predicted = x
+        
+        cost = self.Layers[-1].foward(predicted, outputs)
+        return cost, predicted
+
+    def telementary(self):
+        for layer in self.Layers:
+            if layer.type == "Dense":
+                layer.telementary_parameters()
+
+    def backprop(self, outputs):
+        following_layer = self.Layers[-1]
+        following_layer.backprop(outputs)
+        
+        for index, layer in enumerate(reversed(self.Layers)):
+            if not index == 0:
+                layer.backprop(following_layer)
+                following_layer = layer
+
+    def update_parameters(self, lr):
+        for index, layer in enumerate(self.Layers):
+            if index < len(self.Layers) - 1:
+                layer.update_parameters(lr)
+
     def test(self, input_cache, output_cache):
         for index, inputs in enumerate(input_cache):
-            x = inputs
-            o = output_cache[index]
-            for index, layer in enumerate(self.Layers):
-                if not index == len(self.Layers) - 1:
-                    x = layer.foward(x)
-            cost = self.Layers[-1].foward(x, o)
-            print(f"Predicted: {x:.4f} Actual: {o:.6f} Cost: {cost:.6f}")
+            outputs = output_cache[index]
+            cost, predicted = self.foward_return(inputs, outputs)
+
+            try:
+                predicted[0][0]
+            except:
+                print(f"Predicted: {predicted:.4f}    Actual: {outputs[0]:.6f}    Cost: {cost:.6f}")
+            else:
+                print(f"Predicted: {predicted[0][0]:.4f}    Actual: {outputs[0]:.6f}    Cost: {cost:.6f}")
 
     def optimizer(self, type):
         if type == "STOICHASTIC_GRADIENT_DECSENT":
@@ -126,42 +160,66 @@ class NETWORK:
             self.optimizer = type
 
 class DENSE_LAYER:
-    def __init__(self, num_inputs, num_outputs):
+    def __init__(self, num_inputs, num_outputs, activation_type):
         self.weights = np.random.randn(num_outputs, num_inputs)
         self.biases = np.random.randn(num_outputs, 1)
-
-    def foward(self, inputs):
-        z = self.weights @ inputs + self.biases
-        self.inputs = inputs
-        self.outputs = z
-        return z
-
-    def backprop(self, following_layer):
-        pass
-
-class ACTIVATION_LAYER:
-    def __init__(self, activation_type):
         self.activation = activation_type
+        self.type = "Dense"
 
     def foward(self, inputs):
         self.inputs = inputs
+        z = self.weights @ inputs + self.biases
         a = None
         if self.activation == "RELU":
-            a = np.max(inputs, 0)
+            a = np.max(z)
         elif self.activation == "SIGMOID":
-            a =  1 / (1 + np.exp(-inputs))
+            a =  1 / (1 + np.exp(-z))
+        elif self.activation == "NONE":
+            a = z
+        self.weighted_sums = z
         self.outputs = a
         return a
 
+    def telementary_parameters(self):
+        print("weights: ", end="")
+        print(self.weights)
+        print("biases: ", end="")
+        print(self.biases)
+
     def backprop(self, following_layer):
-        pass
+        #activations only
+        partial_derivative = None
+        if self.activation == "RELU":
+            partial_derivative = (self.weighted_sums > 1).astype(dtype=float)
+        elif self.activation == "SIGMOID":
+            inside = (1 + np.exp(-self.weighted_sums))
+            partial_derivative = (1 / inside) * ( 1 - (1 / inside))
+        elif self.activation == "NONE":
+            partial_derivative = 1
+
+        aft_deltas = following_layer.deltas
+        if not following_layer.type == "Cost":
+            aft_weights = following_layer.weights
+
+            self.deltas = aft_weights @ aft_deltas * partial_derivative
+        else:
+            self.deltas = aft_deltas * partial_derivative
+
+
+        
+    def update_parameters(self, lr):
+        #update weights and biases here
+        self.biases = self.biases - lr * self.deltas
+
+        self.weights = self.weights - lr * self.inputs @ np.transpose(self.deltas)
 
 class COST_LAYER:
     def __init__(self, cost_type):
         self.cost = cost_type
+        self.type = "Cost"
 
     def foward(self, inputs, outputs):
-        self.inputs = inputs
+        self.predicted = inputs
         c = None
         if self.cost == "MEAN_SQUARED_ERROR":
             c = np.sum((outputs - inputs) ** 2)
@@ -171,17 +229,16 @@ class COST_LAYER:
         return c
 
     def backprop(self, outputs):
-        pass
-   
-def architecture(size, types, loss, activation_type):
+        if self.cost == "MEAN_SQUARED_ERROR":
+            self.deltas = 2 * (outputs - self.predicted)
+        elif self.cost == "CROSS_ENTROPY":
+            pass
+  
+def architecture(size, loss, activation_type):
     Layers = []
-    for index, type in enumerate(types):
-        if type == "Dense":
-            Layers.append(DENSE_LAYER(size[index], size[index + 1]))
-        elif type == "Activation":
-            Layers.append(ACTIVATION_LAYER(activation_type))
-        elif type == "Cost":
-            Layers.append(COST_LAYER(loss))
+    for index in range(len(size) - 1):
+        Layers.append(DENSE_LAYER(size[index], size[index + 1], activation_type))
+    Layers.append(COST_LAYER(loss))
     return Layers
 
 def softmax(matrix):
