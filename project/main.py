@@ -1,8 +1,8 @@
 #Neural Network
 #Stoicastic gradient descent
-#version 1.4.0
+#version 1.4.2
 
-import numpy as np # noqa: I001
+import cupy as np # noqa: I001
 import random
 import time
 from mnist import MNIST
@@ -21,12 +21,12 @@ from mnist import MNIST
     #update
 
 #to do:
-#add backprop
-#add update parameters
+
+
 
 def main():
-    size = (1,10,1)
-    net = NETWORK(size)
+    size = (1,4,1)
+    net = NETWORK(size, activation="RELU")
 
     print(net.Layers)
     input_cache = np.array([[4], [3], [2], [-3]])
@@ -34,12 +34,14 @@ def main():
     print(input_cache, "\n", output_cache)
 
     net.optimizer("STOICHASTIC_GRADIENT_DECSENT")
-    net.telementary()
-    net.train(input_cache, output_cache)
+    # net.telementary()
+    net.train(input_cache, output_cache, 5000, .01)
 
     net.telementary()
     net.test(input_cache, output_cache)
 
+    #y = 5x -2 
+    
 
     mndata = MNIST('mnist')
 
@@ -51,11 +53,11 @@ def main():
 
 class NETWORK:
     #Values represent default config
-    def __init__(self, size=(1,1), loss="MEAN_SQUARED_ERROR", activation="RELU"):
+    def __init__(self, size=(1,1), loss="MEAN_SQUARED_ERROR", activation="NONE"):
         self.loss = loss
         self.Layers = architecture(size, loss, activation)
 
-    def train(self, input_cache, output_cache, epochs=2000, lr=0.001):
+    def train(self, input_cache, output_cache, epochs=1000, lr=0.001):
         if self.optimizer == "STOICHASTIC_GRADIENT_DECSENT":
             for epoch in range(epochs):
                 for index in range(len(input_cache)):
@@ -104,14 +106,14 @@ class NETWORK:
             print("Please enter a optimizer for training")
 
     def foward_pass(self, inputs, outputs):
-        x = inputs
+        x = inputs.reshape(-1,1)
         for index, layer in enumerate(self.Layers):
             if index < len(self.Layers) - 1:
                 x = layer.foward(x)
         self.Layers[-1].foward(x, outputs)
 
     def foward_return(self, inputs, outputs):
-        x = inputs
+        x = inputs.reshape(-1,1)
         for index, layer in enumerate(self.Layers):
             if index < len(self.Layers) - 1:
                 x = layer.foward(x)
@@ -140,16 +142,19 @@ class NETWORK:
                 layer.update_parameters(lr)
 
     def test(self, input_cache, output_cache):
+        total_cost = 0
         for index, inputs in enumerate(input_cache):
             outputs = output_cache[index]
             cost, predicted = self.foward_return(inputs, outputs)
+            total_cost += cost
 
             try:
                 predicted[0][0]
             except:
-                print(f"Predicted: {predicted[0]:.4f}    Actual: {outputs[0]:.6f}    Cost: {cost:.6f}")
+                print(f"\nPredicted: {predicted[0]:.4f}    Actual: {outputs[0]:.6f}    Cost: {cost:.6f}")
             else:
-                print(f"Predicted: {predicted[0][0]:.4f}    Actual: {outputs[0]:.6f}    Cost: {cost:.6f}")
+                print(f"\nPredicted: {predicted[0][0]:.4f}    Actual: {outputs[0]:.6f}    Cost: {cost:.6f}")
+        print(f"Total Cost: {total_cost:.4f}")
 
     def optimizer(self, type):
         if type == "STOICHASTIC_GRADIENT_DECSENT":
@@ -161,18 +166,18 @@ class NETWORK:
 
 class DENSE_LAYER:
     def __init__(self, num_inputs, num_outputs, activation_type):
-        self.weights = np.random.randn(num_outputs, num_inputs)
-        self.biases = np.random.randn(num_outputs, 1)
+        self.weights = np.random.randn(num_outputs, num_inputs) * np.sqrt(2 / num_inputs)
+        self.biases = np.random.randn(num_outputs, 1) * np.sqrt(2 / num_inputs)
         self.activation = activation_type
         self.type = "Dense"
 
     def foward(self, inputs):
         self.inputs = inputs
-        z = np.dot(self.weights, inputs)
+        z = self.weights @ inputs
         z += self.biases
         a = None
         if self.activation == "RELU":
-            a = np.max(z, 0)
+            a = np.maximum(z, 0)
         elif self.activation == "SIGMOID":
             a =  1 / (1 + np.exp(-z))
         elif self.activation == "NONE":
@@ -206,8 +211,7 @@ class DENSE_LAYER:
         
     def update_parameters(self, lr):
         self.biases = self.biases - lr * self.deltas
-
-        self.weights = self.weights - lr * np.outer(self.inputs, self.deltas)
+        self.weights = self.weights - lr * (self.deltas @ self.inputs.T)
 
 class COST_LAYER:
     def __init__(self, cost_type):
