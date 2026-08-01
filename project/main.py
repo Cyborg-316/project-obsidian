@@ -2,9 +2,10 @@
 #Stoicastic gradient descent
 #version 1.4.2
 
-import cupy as np # noqa: I001
+import numpy as np # noqa: I001
 import random
 import time
+import string
 from mnist import MNIST
 
 #main
@@ -20,12 +21,8 @@ from mnist import MNIST
     #backprop
     #update
 
-#to do:
-
-
-
 def main():
-    size = (1,4,1)
+    size = (1,6,1)
     net = NETWORK(size, activation="RELU")
 
     print(net.Layers)
@@ -33,12 +30,14 @@ def main():
     output_cache = input_cache ** 2
     print(input_cache, "\n", output_cache)
 
-    net.optimizer("STOICHASTIC_GRADIENT_DECSENT")
+    net.feed_optimizer("STOICHASTIC_GRADIENT_DECSENT")
     # net.telementary()
-    net.train(input_cache, output_cache, 5000, .01)
+    net.train(input_cache, output_cache, 3000, .01)
 
     net.telementary()
     net.test(input_cache, output_cache)
+
+    net.desmos_format()
 
     #y = 5x -2 
     
@@ -57,7 +56,7 @@ class NETWORK:
         self.loss = loss
         self.Layers = architecture(size, loss, activation)
 
-    def train(self, input_cache, output_cache, epochs=1000, lr=0.001):
+    def train(self, input_cache, output_cache, epochs=1000, lr=0.01):
         if self.optimizer == "STOICHASTIC_GRADIENT_DECSENT":
             for epoch in range(epochs):
                 for index in range(len(input_cache)):
@@ -156,13 +155,20 @@ class NETWORK:
                 print(f"\nPredicted: {predicted[0][0]:.4f}    Actual: {outputs[0]:.6f}    Cost: {cost:.6f}")
         print(f"Total Cost: {total_cost:.4f}")
 
-    def optimizer(self, type):
+    def feed_optimizer(self, type):
         if type == "STOICHASTIC_GRADIENT_DECSENT":
             self.optimizer = type
         elif type == "GRADIENT_DECSENT":
             self.optimizer = type
         elif type == "MOMENTUM":
             self.optimizer = type
+
+    def desmos_format(self):
+        eqaution = ""
+        abc = string.ascii_uppercase
+
+        print(abc)
+        return eqaution
 
 class DENSE_LAYER:
     def __init__(self, num_inputs, num_outputs, activation_type):
