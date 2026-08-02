@@ -32,7 +32,7 @@ def main():
 
     net.feed_optimizer("STOICHASTIC_GRADIENT_DECSENT")
     # net.telementary()
-    net.train(input_cache, output_cache, 3000, .01)
+    net.train(input_cache, output_cache, 3000, .005)
 
     net.telementary()
     net.test(input_cache, output_cache)
@@ -55,6 +55,7 @@ class NETWORK:
     def __init__(self, size=(1,1), loss="MEAN_SQUARED_ERROR", activation="NONE"):
         self.loss = loss
         self.Layers = architecture(size, loss, activation)
+        self.activation_function = activation
 
     def train(self, input_cache, output_cache, epochs=1000, lr=0.01):
         if self.optimizer == "STOICHASTIC_GRADIENT_DECSENT":
@@ -165,9 +166,41 @@ class NETWORK:
 
     def desmos_format(self):
         eqaution = ""
-        abc = string.ascii_uppercase
+        abc = list(string.ascii_uppercase)
+        func = []
+        input = "x"
+        
 
-        print(abc)
+        # if self.activation_function == "NONE":
+        #     pass
+        # elif self.activation_function == "RELU":
+        func.append(abc[0])
+        abc.pop(0)
+        print(f"{func[0]}({input})=max({input},0)")
+        # elif self.activation_function == "SIGMOID":
+        #     func.append(abc[0])
+        #     abc.pop(0)
+        #     print(f"{func[0]}({input})=1/(1+exp(-{input}))")
+        weights = []
+        biases = []
+        
+        for layer in self.Layers:
+            layer_functions = []
+            if not layer.type == "Cost":
+                for weight in layer.weights:
+                    layer_functions.append(abc[0])
+                    abc.pop(0)
+                    weights.append(weight)
+                    print("m", weight)
+
+                for bias in layer.biases:
+                    biases.append(bias)
+                    print("b", bias)
+                func.append(layer_functions)
+        print("\nfunc\n", func, "\nweights\n", weights, "\nbiases\n", biases)
+
+        
+
         return eqaution
 
 class DENSE_LAYER:
