@@ -1,6 +1,6 @@
 #Neural Network
 #Stoicastic gradient descent
-#version 1.4.2
+#version 1.4.3
 
 import numpy as np # noqa: I001
 import random
@@ -22,19 +22,18 @@ from mnist import MNIST
     #update
 
 def main():
-    size = (1,6,1)
-    net = NETWORK(size, activation="RELU")
+    size = (1,15,1)
+    net = NETWORK(size, activation="SIGMOID")
 
-    print(net.Layers)
-    input_cache = np.array([[4], [3], [2], [-3]])
-    output_cache = input_cache ** 2
+    input_cache = np.array([[0],[0.5],[1],[2],[1.5],[2],[2.5],[3],[3.5],[4],[4.5]])
+    output_cache = 4 * (input_cache-3) ** 3 + 5 + 5 ** (-input_cache + 3)
     print(input_cache, "\n", output_cache)
 
     net.feed_optimizer("STOICHASTIC_GRADIENT_DECSENT")
     # net.telementary()
-    net.train(input_cache, output_cache, 3000, .005)
+    net.train(input_cache, output_cache, 10000, .01)
 
-    net.telementary()
+    # net.telementary()
     net.test(input_cache, output_cache)
 
     net.desmos_format()
@@ -110,14 +109,15 @@ class NETWORK:
         for index, layer in enumerate(self.Layers):
             if index < len(self.Layers) - 1:
                 x = layer.foward(x)
-        self.Layers[-1].foward(x, outputs)
+
+        self.Layers[-1].foward(self.Layers[-2].weighted_sums, outputs)
 
     def foward_return(self, inputs, outputs):
         x = inputs.reshape(-1,1)
         for index, layer in enumerate(self.Layers):
             if index < len(self.Layers) - 1:
                 x = layer.foward(x)
-        predicted = x
+        predicted = self.Layers[-2].weighted_sums
         
         cost = self.Layers[-1].foward(predicted, outputs)
         return cost, predicted
@@ -142,6 +142,7 @@ class NETWORK:
                 layer.update_parameters(lr)
 
     def test(self, input_cache, output_cache):
+        print("\nTEST:")
         total_cost = 0
         for index, inputs in enumerate(input_cache):
             outputs = output_cache[index]
@@ -151,9 +152,9 @@ class NETWORK:
             try:
                 predicted[0][0]
             except:
-                print(f"\nPredicted: {predicted[0]:.4f}    Actual: {outputs[0]:.6f}    Cost: {cost:.6f}")
+                print(f"Predicted: {predicted[0]:.4f}    Actual: {outputs[0]:.6f}    Cost: {cost:.6f}")
             else:
-                print(f"\nPredicted: {predicted[0][0]:.4f}    Actual: {outputs[0]:.6f}    Cost: {cost:.6f}")
+                print(f"Predicted: {predicted[0][0]:.4f}    Actual: {outputs[0]:.6f}    Cost: {cost:.6f}")
         print(f"Total Cost: {total_cost:.4f}")
 
     def feed_optimizer(self, type):
@@ -165,46 +166,62 @@ class NETWORK:
             self.optimizer = type
 
     def desmos_format(self):
-        eqaution = ""
-        abc = list(string.ascii_uppercase)
-        func = []
-        input = "x"
-        
+        if self.Layers[0].num_inputs > 1:
+            print("Desmos format only works with one input")
+            return
 
-        # if self.activation_function == "NONE":
-        #     pass
-        # elif self.activation_function == "RELU":
+        abc = list(string.ascii_uppercase) + list(string.ascii_lowercase)
+        input = "x"
+        abc.remove(input)
+        func = []
+        prev_func = []
+
         func.append(abc[0])
         abc.pop(0)
-        print(f"{func[0]}({input})=max({input},0)")
-        # elif self.activation_function == "SIGMOID":
-        #     func.append(abc[0])
-        #     abc.pop(0)
-        #     print(f"{func[0]}({input})=1/(1+exp(-{input}))")
-        weights = []
-        biases = []
+        if self.activation_function == "NONE":
+            print(f"\n{func[0]}({input}={input})")
+        elif self.activation_function == "RELU":
+            print(f"\n{func[0]}({input})=max({input},0)")
+        elif self.activation_function == "SIGMOID":
+            print(f"\n{func[0]}({input})=1/(1+exp(-{input}))")
         
-        for layer in self.Layers:
-            layer_functions = []
-            if not layer.type == "Cost":
-                for weight in layer.weights:
-                    layer_functions.append(abc[0])
+        for index, layer in enumerate(self.Layers):
+            temp = []
+            if (not layer.type == "Cost") and (index == 0):
+                for index, weight in enumerate(layer.weights):
+                    func.append(abc[0])
+                    temp.append(abc[0])
                     abc.pop(0)
-                    weights.append(weight)
-                    print("m", weight)
+                    m = weight[0]
+                    b = layer.biases[index][0]
 
-                for bias in layer.biases:
-                    biases.append(bias)
-                    print("b", bias)
-                func.append(layer_functions)
-        print("\nfunc\n", func, "\nweights\n", weights, "\nbiases\n", biases)
+                    if b >= 0:
+                        print(f"{func[-1]}({input})={func[0]}({m:.5f}{input}+{b:.5f})")
+                    else:
+                        print(f"{func[-1]}({input})={func[0]}({m:.5f}{input}{b:.5f})")
+                prev_func.append(temp)
+            elif not layer.type == "Cost":
+                for index, weight in enumerate(layer.weights):
+                    func.append(abc[0])
+                    temp.append(abc[0])
+                    abc.pop(0)
 
-        
-
-        return eqaution
+                    b = layer.biases[index][0]
+                    equation = ""
+                    for i, m in enumerate(weight):
+                        if m >= 0:
+                            equation += f"+{m:.5f}{prev_func[index - 1][i]}({input})"
+                        else:
+                            equation += f"{m:.5f}{prev_func[index - 1][i]}({input})"
+                    if b >= 0:
+                        print(f"{func[-1]}({input})={equation}+{b:.5f}")
+                    else:
+                        print(f"{func[-1]}({input})={equation}{b:.5f}")
+                prev_func.append(temp)
 
 class DENSE_LAYER:
     def __init__(self, num_inputs, num_outputs, activation_type):
+        self.num_inputs = num_inputs
         self.weights = np.random.randn(num_outputs, num_inputs) * np.sqrt(2 / num_inputs)
         self.biases = np.random.randn(num_outputs, 1) * np.sqrt(2 / num_inputs)
         self.activation = activation_type
@@ -232,21 +249,20 @@ class DENSE_LAYER:
         print(self.biases)
 
     def backprop(self, following_layer):
-        partial_derivative = None
-        if self.activation == "RELU":
-            partial_derivative = (self.weighted_sums > 0).astype(dtype=float)
-        elif self.activation == "SIGMOID":
-            partial_derivative = self.outputs * ( 1 - self.outputs)
-        elif self.activation == "NONE":
-            partial_derivative = 1
-
         aft_deltas = following_layer.deltas
         if not following_layer.type == "Cost":
-            aft_weights = following_layer.weights
+            partial_derivative = None
+            if self.activation == "RELU":
+                partial_derivative = (self.weighted_sums > 0).astype(dtype=float)
+            elif self.activation == "SIGMOID":
+                partial_derivative = self.outputs * ( 1 - self.outputs)
+            elif self.activation == "NONE":
+                partial_derivative = 1
 
+            aft_weights = following_layer.weights
             self.deltas = np.transpose(aft_weights) @ aft_deltas * partial_derivative
         else:
-            self.deltas = aft_deltas * partial_derivative
+            self.deltas = aft_deltas
         
     def update_parameters(self, lr):
         self.biases = self.biases - lr * self.deltas
