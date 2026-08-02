@@ -1,16 +1,47 @@
-#Neural Network with GPU and possibly TPU
+#Neural Network
 #Stoicastic gradient descent
-#version 1.3.7
+#version 1.4.3
 
-import numpy as cp # noqa: I001
+import numpy as np # noqa: I001
 import random
-import random
+import time
+import string
 from mnist import MNIST
 
-def main():
-    print("---------------RUNNING---------------\n\n\n\n\n")
+#main
+    #Network call
 
-    # mndata = MNIST('mnist')
+#Network Class
+    #dense_layer call
+    #activation_layer call
+    #cost_layer call
+
+#Layer Classes
+    #Foward
+    #backprop
+    #update
+
+def main():
+    size = (1,15,1)
+    net = NETWORK(size, activation="SIGMOID")
+
+    input_cache = np.array([[0],[0.5],[1],[2],[1.5],[2],[2.5],[3],[3.5],[4],[4.5]])
+    output_cache = 4 * (input_cache-3) ** 3 + 5 + 5 ** (-input_cache + 3)
+    print(input_cache, "\n", output_cache)
+
+    net.feed_optimizer("STOICHASTIC_GRADIENT_DECSENT")
+    # net.telementary()
+    net.train(input_cache, output_cache, 10000, .01)
+
+    # net.telementary()
+    net.test(input_cache, output_cache)
+
+    net.desmos_format()
+
+    #y = 5x -2 
+    
+
+    mndata = MNIST('mnist')
 
     # training_images, training_labels = mndata.load_training()
     # testing_images, testing_labels = mndata.load_testing()
@@ -18,183 +49,278 @@ def main():
     # print(len(training_images), len(training_labels))
     # print(len(testing_images), len(testing_labels))
 
-    inputs = [cp.array([1, 0, 3]), cp.array([5, -3, 2]), cp.array([0, 1, -1])]
-    # inputs = inputs
+class NETWORK:
+    #Values represent default config
+    def __init__(self, size=(1,1), loss="MEAN_SQUARED_ERROR", activation="NONE"):
+        self.loss = loss
+        self.Layers = architecture(size, loss, activation)
+        self.activation_function = activation
 
-    TRAIN_NETWORK(
-        inputs, 
-        cp.array([4, 4, 0]), 
-        size=(3,1), 
-        COST="MEAN_SQUARED_ERROR",
-        learning_rate=0.01,
-        iterations=1000,
-        telementary=True
-    )
+    def train(self, input_cache, output_cache, epochs=1000, lr=0.01):
+        if self.optimizer == "STOICHASTIC_GRADIENT_DECSENT":
+            for epoch in range(epochs):
+                for index in range(len(input_cache)):
+                    inputs = input_cache[index]
+                    outputs = output_cache[index]
 
-    print("\n\n\n\n\n---------------FINISHED--------------")
+                    #foward
+                    self.foward_pass(inputs, outputs)
 
-def TRAIN_NETWORK(inputs, outputs, size, COST, learning_rate, iterations, telementary):
-    input_array = inputs
-    output_array = outputs
+                    #backward
+                    self.backprop(outputs)
 
-    NET = NETWORK(ARCHITECTURE(size), COST)
+                    #update parameters
+                    self.update_parameters(lr)
 
-    if telementary:
-        NET.TELEMENTARY_PARAMETERS()
-        print("---------------TRAINING--------------")
+        elif self.optimizer == "GRADIENT_DECSENT":
+            for epoch in range(epochs):
+                #set gradients to zero
+                for index in range(len(input_cache)):
+                    inputs = input_cache[index]
+                    outputs = output_cache[index]
 
-    for epoch in range(iterations):
-        for index in range(len(input_array)):
-            NET.FOWARD(cp.array(input_array[index]))
+                    #foward
+                    x = inputs
+                    for layer in self.Layers:
+                        x = layer.foward(x)
 
-            NET.BACKPROP(actual=cp.array([[output_array[index]]]), COST="MEAN_SQUARED_ERROR")
+                    #backward
+                    following_layer = self.Layers[-1]
+                    grad = following_layer.backprop(outputs)
+                    
+                    for index, layer in enumerate(reversed(self.Layers)):
+                        if not index == 0:
+                            grad = layer.backprop(following_layer)
+                            following_layer = layer
 
-            NET.UDPATE(learning_rate)
-    
-    if telementary:
-        print("---------------COMPLETED-------------")
-        NET.TELEMENTARY_PARAMETERS()
-    NET.TELEMENTARY_PRED_VS_ACTUAL(inputs=input_array, outputs=output_array)
+                    #update gradients
 
-def ARCHITECTURE(Layout):
-    neurons = list(Layout)
-    Layers = []
-    for i in range(len(neurons) - 1):
-        Layers.append(LAYER(neurons[i], neurons[i+1], i, len(neurons) - 1))
-    return Layers
+                #update parameters
+        
+        elif self.optimizer == "MOMENTUM":
+            #momentum gradient descent here
+            pass
 
-class NETWORK():
-    def __init__(self, layers, cost):
-        self.Layers = layers
-        self.cost = cost
-
-    def FOWARD(self, inputs):
-        x = inputs
-        for layer in self.Layers:
-            x = layer.foward(x)
-
-    def BACKPROP(self, actual, COST):
-        Layers = self.Layers
-        gradient = None
-        for layer in reversed(Layers):
-            gradient = layer.backward(gradient, Layers, actual, COST)
-
-    def UDPATE(self, learning_rate):
-        for layer in self.Layers:
-            layer.update_parameters(learning_rate)
-
-    def TELEMENTARY_PARAMETERS(self):
-        Layers = self.Layers
-        for layer in Layers:
-            print("weight(s):", layer.weights, "bias(es):", layer.biases, "Layer index:", Layers.index(layer))
-
-    def TELEMENTARY_PRED_VS_ACTUAL(self, inputs, outputs):
-        Cost = 0
-        for index in range(len(inputs)):
-            # print("running")
-            #foward pass
-            self.FOWARD(cp.array([[inputs[index]]]))
-            pred = self.Layers[-1].activations
-            actual = cp.array([[outputs[index]]])
-            print("pred", pred, "actual", actual)
-            Cost += (pred - actual) ** 2
-        print(f"{self.cost}: {Cost[0][0]:.3f}")
-
-class LAYER():
-    def __init__(self, a, b, index, layer_amt):
-        self.input_amt = a
-        self.output_amt = b
-        self.layer_index = index
-        self.total_layer_amt = layer_amt
-
-        #init weights & biases
-        if b > 1 or a > 1:
-            self.weights = CUSTOM_ARRAY_OPERATIONS.create_random(b, a) + .1
-            self.biases = CUSTOM_ARRAY_OPERATIONS.create_random(b, 1) + .1
         else:
-            self.weights = CUSTOM_ARRAY_OPERATIONS.create_single1()
-            self.biases = CUSTOM_ARRAY_OPERATIONS.create_single2()
+            print("Please enter a optimizer for training")
 
-    def foward(self, inputs):
-        transposed_inputs = inputs.reshape(-1, 1)
-        self.prev_activations = transposed_inputs
+    def foward_pass(self, inputs, outputs):
+        x = inputs.reshape(-1,1)
+        for index, layer in enumerate(self.Layers):
+            if index < len(self.Layers) - 1:
+                x = layer.foward(x)
+
+        self.Layers[-1].foward(self.Layers[-2].weighted_sums, outputs)
+
+    def foward_return(self, inputs, outputs):
+        x = inputs.reshape(-1,1)
+        for index, layer in enumerate(self.Layers):
+            if index < len(self.Layers) - 1:
+                x = layer.foward(x)
+        predicted = self.Layers[-2].weighted_sums
         
-        z = cp.dot(self.weights, transposed_inputs) + self.biases
-        a = self.activation(z)
+        cost = self.Layers[-1].foward(predicted, outputs)
+        return cost, predicted
+
+    def telementary(self):
+        for layer in self.Layers:
+            if layer.type == "Dense":
+                layer.telementary_parameters()
+
+    def backprop(self, outputs):
+        following_layer = self.Layers[-1]
+        following_layer.backprop(outputs)
         
-        self.weighetd_sums = z
-        self.activations = a
-        self.d_activations = self.d_activation(z)
-        self.total_grad = CUSTOM_ARRAY_OPERATIONS.create_zeros(self.output_amt, 1)
-        return a
-
-    def backward(self, gradients, Layers, outputs, COST):
-        if self.layer_index == self.total_layer_amt - 1:
-            if COST == "MEAN_SQUARED_ERROR":
-                    grad = 2 * (self.activations - outputs) * self.d_activations
-                    self.gradient = grad
-                    return grad
-            elif COST == "CROSS_ENTROPY_LOSS":
-                pass
-
-        after_weights = Layers[Layers.index(self) + 1].weights
-        grad = cp.dot(after_weights.T, gradients).reshape(self.output_amt, self.input_amt) * self.d_activations
-        self.gradient = grad
-        return grad
+        for index, layer in enumerate(reversed(self.Layers)):
+            if not index == 0:
+                layer.backprop(following_layer)
+                following_layer = layer
 
     def update_parameters(self, lr):
-        grad = self.gradient
-        #print(grad)
+        for index, layer in enumerate(self.Layers):
+            if index < len(self.Layers) - 1:
+                layer.update_parameters(lr)
 
-        self.weights -= lr * (grad @ cp.atleast_2d(self.prev_activations).T)
-        self.biases -= lr * grad
+    def test(self, input_cache, output_cache):
+        print("\nTEST:")
+        total_cost = 0
+        for index, inputs in enumerate(input_cache):
+            outputs = output_cache[index]
+            cost, predicted = self.foward_return(inputs, outputs)
+            total_cost += cost
 
-    def activation(self, x):
-        return cp.maximum(x, 0)
+            try:
+                predicted[0][0]
+            except:
+                print(f"Predicted: {predicted[0]:.4f}    Actual: {outputs[0]:.6f}    Cost: {cost:.6f}")
+            else:
+                print(f"Predicted: {predicted[0][0]:.4f}    Actual: {outputs[0]:.6f}    Cost: {cost:.6f}")
+        print(f"Total Cost: {total_cost:.4f}")
 
-    def d_activation(self, x):
-        return (x > 0).astype(float)
+    def feed_optimizer(self, type):
+        if type == "STOICHASTIC_GRADIENT_DECSENT":
+            self.optimizer = type
+        elif type == "GRADIENT_DECSENT":
+            self.optimizer = type
+        elif type == "MOMENTUM":
+            self.optimizer = type
 
-class CUSTOM_ARRAY_OPERATIONS():
-    def create_random(rows, columns):
-        return cp.random.randn(rows, columns) * cp.sqrt(2 / rows)
+    def desmos_format(self):
+        if self.Layers[0].num_inputs > 1:
+            print("Desmos format only works with one input")
+            return
 
-    def create_zeros(rows, columns):
-        return cp.zeros((rows, columns))
+        abc = list(string.ascii_uppercase) + list(string.ascii_lowercase)
+        input = "x"
+        abc.remove(input)
+        func = []
+        prev_func = []
 
-    def create_ones(rows, columns):
-        return cp.ones((rows, columns))
+        func.append(abc[0])
+        abc.pop(0)
+        if self.activation_function == "NONE":
+            print(f"\n{func[0]}({input}={input})")
+        elif self.activation_function == "RELU":
+            print(f"\n{func[0]}({input})=max({input},0)")
+        elif self.activation_function == "SIGMOID":
+            print(f"\n{func[0]}({input})=1/(1+exp(-{input}))")
+        
+        for index, layer in enumerate(self.Layers):
+            temp = []
+            if (not layer.type == "Cost") and (index == 0):
+                for index, weight in enumerate(layer.weights):
+                    func.append(abc[0])
+                    temp.append(abc[0])
+                    abc.pop(0)
+                    m = weight[0]
+                    b = layer.biases[index][0]
 
-    def create_single1():
-        return cp.array([cp.random.randn() * cp.sqrt(2)])
+                    if b >= 0:
+                        print(f"{func[-1]}({input})={func[0]}({m:.5f}{input}+{b:.5f})")
+                    else:
+                        print(f"{func[-1]}({input})={func[0]}({m:.5f}{input}{b:.5f})")
+                prev_func.append(temp)
+            elif not layer.type == "Cost":
+                for index, weight in enumerate(layer.weights):
+                    func.append(abc[0])
+                    temp.append(abc[0])
+                    abc.pop(0)
 
-    def create_single2():
-        return cp.array([cp.sqrt(2)]) * (random.randint(-1,1))
+                    b = layer.biases[index][0]
+                    equation = ""
+                    for i, m in enumerate(weight):
+                        if m >= 0:
+                            equation += f"+{m:.5f}{prev_func[index - 1][i]}({input})"
+                        else:
+                            equation += f"{m:.5f}{prev_func[index - 1][i]}({input})"
+                    if b >= 0:
+                        print(f"{func[-1]}({input})={equation}+{b:.5f}")
+                    else:
+                        print(f"{func[-1]}({input})={equation}{b:.5f}")
+                prev_func.append(temp)
 
-    def softmax(matrix):
-        mat = cp.exp(matrix)
-        sum = mat_sum(mat)
-        return mat * (1 / sum)
+class DENSE_LAYER:
+    def __init__(self, num_inputs, num_outputs, activation_type):
+        self.num_inputs = num_inputs
+        self.weights = np.random.randn(num_outputs, num_inputs) * np.sqrt(2 / num_inputs)
+        self.biases = np.random.randn(num_outputs, 1) * np.sqrt(2 / num_inputs)
+        self.activation = activation_type
+        self.type = "Dense"
 
-    def cross_entropy(matrix_p, matrix_q):
-        if (matrix_p.shape != matrix_q.shape):
-            return False
+    def foward(self, inputs):
+        self.inputs = inputs
+        z = self.weights @ inputs
+        z += self.biases
+        a = None
+        if self.activation == "RELU":
+            a = np.maximum(z, 0)
+        elif self.activation == "SIGMOID":
+            a =  1 / (1 + np.exp(-z))
+        elif self.activation == "NONE":
+            a = z
+        self.weighted_sums = z
+        self.outputs = a
+        return a
 
-        mat = cp.multiply(matrix_p, cp.log(matrix_q))
-        return -cp.sum(mat)
+    def telementary_parameters(self):
+        print("weights: ", end="")
+        print(self.weights)
+        print("biases: ", end="")
+        print(self.biases)
+
+    def backprop(self, following_layer):
+        aft_deltas = following_layer.deltas
+        if not following_layer.type == "Cost":
+            partial_derivative = None
+            if self.activation == "RELU":
+                partial_derivative = (self.weighted_sums > 0).astype(dtype=float)
+            elif self.activation == "SIGMOID":
+                partial_derivative = self.outputs * ( 1 - self.outputs)
+            elif self.activation == "NONE":
+                partial_derivative = 1
+
+            aft_weights = following_layer.weights
+            self.deltas = np.transpose(aft_weights) @ aft_deltas * partial_derivative
+        else:
+            self.deltas = aft_deltas
+        
+    def update_parameters(self, lr):
+        self.biases = self.biases - lr * self.deltas
+        self.weights = self.weights - lr * (self.deltas @ self.inputs.T)
+
+class COST_LAYER:
+    def __init__(self, cost_type):
+        self.cost = cost_type
+        self.type = "Cost"
+
+    def foward(self, inputs, outputs):
+        self.predicted = inputs
+        c = None
+        if self.cost == "MEAN_SQUARED_ERROR":
+            c = np.sum((outputs - inputs) ** 2)
+        elif self.cost == "CROSS_ENTROPY":
+            c = cross_entropy(outputs, inputs)
+        self.outputs = c
+        return c
+
+    def backprop(self, outputs):
+        if self.cost == "MEAN_SQUARED_ERROR":
+            self.deltas = 2 * (self.predicted - outputs)
+        elif self.cost == "CROSS_ENTROPY":
+            pass
+  
+def architecture(size, loss, activation_type):
+    Layers = []
+    for index in range(len(size) - 1):
+        Layers.append(DENSE_LAYER(size[index], size[index + 1], activation_type))
+    Layers.append(COST_LAYER(loss))
+    return Layers
+
+def softmax(matrix):
+    mat = np.exp(matrix)
+    sum = np.sum(mat)
+    return mat * (1 / sum)
+
+def cross_entropy(matrix_p, matrix_q):
+    if (matrix_p.shape != matrix_q.shape):
+        return False
+
+    mat = np.multiply(matrix_p, np.log(matrix_q))
+    return -np.sum(mat)
 
 def draw_mnist_digit(image_list):
     for x in range(28):
         print("|", end = "")
         for y in range(28):
-            draw_char(image_list[y + 28 * x])
+            char = image_list[y + 28 * x]
+            if char > 0:
+                    print("0 ", end = "")
+            else:
+                print("  ", end = "")
         print("|")
 
-def draw_char(char):
-    if char > 0:
-        print("0 ", end = "")
-    else:
-        print("  ", end = "")
-
+start = time.perf_counter()
+print("\n---------------RUNNING---------------\n\n\n\n\n")
 main()
-
+end = time.perf_counter()
+print(f"\n-----FINISHED--IN--{(end - start):.9f}s------\n")
