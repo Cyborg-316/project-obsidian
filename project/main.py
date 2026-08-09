@@ -1,6 +1,6 @@
 #Neural Network
 #Stoicastic gradient descent
-#version 1.4.3
+#version 1.4.5
 
 import numpy as np # noqa: I001
 import random
@@ -21,22 +21,28 @@ from mnist import MNIST
     #backprop
     #update
 
-def main():
-    size = (1,15,1)
-    net = NETWORK(size, activation="SIGMOID")
+#to do:
+    #function that turns one array into multiple sub arrays
 
-    input_cache = np.array([[0],[0.5],[1],[2],[1.5],[2],[2.5],[3],[3.5],[4],[4.5]])
-    output_cache = 4 * (input_cache-3) ** 3 + 5 + 5 ** (-input_cache + 3)
+def main():
+    size = (2,3,1)
+    net = NETWORK(size, activation="TANH")
+
+    
+    input_cache = np.array([[0,0],[0,1],[1,0],[1,1]])
+    output_cache = np.array([[0],[1],[1],[1]])
     print(input_cache, "\n", output_cache)
+    # input_cache = normalize(input_cache)
+    # output_cache = normalize(output_cache)
 
     net.feed_optimizer("STOICHASTIC_GRADIENT_DECSENT")
     # net.telementary()
-    net.train(input_cache, output_cache, 10000, .01)
+    net.train(input_cache, output_cache, 10000, lr = .01)
 
-    # net.telementary()
+    net.telementary()
     net.test(input_cache, output_cache)
 
-    net.desmos_format()
+    net.desmos_format1D()
 
     #y = 5x -2 
     
@@ -152,7 +158,7 @@ class NETWORK:
             try:
                 predicted[0][0]
             except:
-                print(f"Predicted: {predicted[0]:.4f}    Actual: {outputs[0]:.6f}    Cost: {cost:.6f}")
+                print(f"Predicted: {predicted[0]:.6f}    Actual: {outputs[0]:.6f}    Cost: {cost:.6f}")
             else:
                 print(f"Predicted: {predicted[0][0]:.4f}    Actual: {outputs[0]:.6f}    Cost: {cost:.6f}")
         print(f"Total Cost: {total_cost:.4f}")
@@ -165,25 +171,32 @@ class NETWORK:
         elif type == "MOMENTUM":
             self.optimizer = type
 
-    def desmos_format(self):
-        if self.Layers[0].num_inputs > 1:
-            print("Desmos format only works with one input")
+    def desmos_format1D(self, input = "x"):
+        if not self.Layers[0].num_inputs == 1:
+            print("\n******Desmos 1D only works with one input******")
             return
 
         abc = list(string.ascii_uppercase) + list(string.ascii_lowercase)
-        input = "x"
         abc.remove(input)
+        abc.remove("e")
+        
+        if self.number_of_nuerons() > len(abc):
+            print("\n******Desmos has too little functions to represent network******")
+            return
+
         func = []
         prev_func = []
 
         func.append(abc[0])
         abc.pop(0)
         if self.activation_function == "NONE":
-            print(f"\n{func[0]}({input}={input})")
+            print(f"\n{func[0]}({input})={input}")
         elif self.activation_function == "RELU":
             print(f"\n{func[0]}({input})=max({input},0)")
         elif self.activation_function == "SIGMOID":
             print(f"\n{func[0]}({input})=1/(1+exp(-{input}))")
+        elif self.activation_function == "TANH":
+            print(f"\n{func[0]}({input})=tanh({input})")
         
         for index, layer in enumerate(self.Layers):
             temp = []
@@ -219,9 +232,16 @@ class NETWORK:
                         print(f"{func[-1]}({input})={equation}{b:.5f}")
                 prev_func.append(temp)
 
+    def number_of_nuerons(self):
+        num_nuerons = 0
+        for layer in self.Layers:
+            num_nuerons += layer.num_outputs
+        return num_nuerons
+
 class DENSE_LAYER:
     def __init__(self, num_inputs, num_outputs, activation_type):
         self.num_inputs = num_inputs
+        self.num_outputs = num_outputs
         self.weights = np.random.randn(num_outputs, num_inputs) * np.sqrt(2 / num_inputs)
         self.biases = np.random.randn(num_outputs, 1) * np.sqrt(2 / num_inputs)
         self.activation = activation_type
@@ -236,6 +256,8 @@ class DENSE_LAYER:
             a = np.maximum(z, 0)
         elif self.activation == "SIGMOID":
             a =  1 / (1 + np.exp(-z))
+        elif self.activation == "TANH":
+            a = np.tanh(z)
         elif self.activation == "NONE":
             a = z
         self.weighted_sums = z
@@ -243,9 +265,9 @@ class DENSE_LAYER:
         return a
 
     def telementary_parameters(self):
-        print("weights: ", end="")
+        print("\nweights: ", end="")
         print(self.weights)
-        print("biases: ", end="")
+        print("\nbiases: ", end="")
         print(self.biases)
 
     def backprop(self, following_layer):
@@ -256,6 +278,8 @@ class DENSE_LAYER:
                 partial_derivative = (self.weighted_sums > 0).astype(dtype=float)
             elif self.activation == "SIGMOID":
                 partial_derivative = self.outputs * ( 1 - self.outputs)
+            elif self.activation == "TANH":
+                partial_derivative = 1 - np.tanh(self.weighted_sums) ** 2
             elif self.activation == "NONE":
                 partial_derivative = 1
 
@@ -272,6 +296,7 @@ class COST_LAYER:
     def __init__(self, cost_type):
         self.cost = cost_type
         self.type = "Cost"
+        self.num_outputs = 0
 
     def foward(self, inputs, outputs):
         self.predicted = inputs
@@ -288,7 +313,17 @@ class COST_LAYER:
             self.deltas = 2 * (self.predicted - outputs)
         elif self.cost == "CROSS_ENTROPY":
             pass
-  
+
+def array_extender(array):
+    new_array = np.array([[array[0]]])
+    for index, i in enumerate(array):
+        if not index == 0:
+            new_array = np.concatenate((new_array,np.array([[i]])))
+    return new_array
+
+def normalize(array):
+    return array / np.max(array)
+
 def architecture(size, loss, activation_type):
     Layers = []
     for index in range(len(size) - 1):
