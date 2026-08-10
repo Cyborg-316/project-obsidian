@@ -1,48 +1,31 @@
 #Neural Network
 #Stoicastic gradient descent
-#version 1.4.5
+#version 1.4.6
 
 import numpy as np # noqa: I001
-import random
 import time
 import string
 from mnist import MNIST
 
-#main
-    #Network call
-
-#Network Class
-    #dense_layer call
-    #activation_layer call
-    #cost_layer call
-
-#Layer Classes
-    #Foward
-    #backprop
-    #update
-
-#to do:
-    #function that turns one array into multiple sub arrays
-
 def main():
-    size = (2,3,1)
+    size = (2,6,1)
     net = NETWORK(size, activation="TANH")
 
     
     input_cache = np.array([[0,0],[0,1],[1,0],[1,1]])
-    output_cache = np.array([[0],[1],[1],[1]])
+    output_cache = np.array([[1],[0],[0],[0]])
     print(input_cache, "\n", output_cache)
     # input_cache = normalize(input_cache)
     # output_cache = normalize(output_cache)
 
     net.feed_optimizer("STOICHASTIC_GRADIENT_DECSENT")
     # net.telementary()
-    net.train(input_cache, output_cache, 10000, lr = .01)
+    net.train(input_cache, output_cache, 10000)
 
     net.telementary()
     net.test(input_cache, output_cache)
 
-    net.desmos_format1D()
+    # net.desmos_format1D()
 
     #y = 5x -2 
     
@@ -272,6 +255,7 @@ class DENSE_LAYER:
 
     def backprop(self, following_layer):
         aft_deltas = following_layer.deltas
+        #update
         if not following_layer.type == "Cost":
             partial_derivative = None
             if self.activation == "RELU":
