@@ -3,27 +3,13 @@
 #version 1.4.6
 
 import numpy as np # noqa: I001
+import cupy as cp
 import time
 import string
 from mnist import MNIST
 
 def main():
-    size = (2,6,1)
-    net = NETWORK(size, activation="TANH")
-
     
-    input_cache = np.array([[0,0],[0,1],[1,0],[1,1]])
-    output_cache = np.array([[1],[0],[0],[0]])
-    print(input_cache, "\n", output_cache)
-    # input_cache = normalize(input_cache)
-    # output_cache = normalize(output_cache)
-
-    net.feed_optimizer("STOICHASTIC_GRADIENT_DECSENT")
-    # net.telementary()
-    net.train(input_cache, output_cache, 10000)
-
-    net.telementary()
-    net.test(input_cache, output_cache)
 
     # net.desmos_format1D()
 
@@ -32,11 +18,31 @@ def main():
 
     mndata = MNIST('mnist')
 
-    # training_images, training_labels = mndata.load_training()
+    training_images, training_labels = mndata.load_training()
     # testing_images, testing_labels = mndata.load_testing()
 
-    # print(len(training_images), len(training_labels))
-    # print(len(testing_images), len(testing_labels))
+    index = len(training_labels) - 1
+    index = np.random.randint(0,index)
+    draw_mnist_digit(training_images[index])
+    print(training_labels[index], "num")
+    # print(num_to_array(training_labels[9999]), "arrayed num")
+
+    # print(np.asarray(training_labels).size)
+
+    # array = np.eye(2, 11)
+
+    # size = (784,128,64,10)
+    # net = NETWORK(size, loss="MEAN_SQUARED_ERROR",activation="SIGMOID")
+
+    
+    # print(input_cache, "\n", output_cache)
+
+    # net.feed_optimizer("STOICHASTIC_GRADIENT_DECSENT")
+    # # net.telementary()
+    # net.train(input_cache, output_cache, 5000, .05)
+
+    # # net.telementary()
+    # net.test(input_cache, output_cache)
 
 class NETWORK:
     #Values represent default config
@@ -62,29 +68,7 @@ class NETWORK:
                     self.update_parameters(lr)
 
         elif self.optimizer == "GRADIENT_DECSENT":
-            for epoch in range(epochs):
-                #set gradients to zero
-                for index in range(len(input_cache)):
-                    inputs = input_cache[index]
-                    outputs = output_cache[index]
-
-                    #foward
-                    x = inputs
-                    for layer in self.Layers:
-                        x = layer.foward(x)
-
-                    #backward
-                    following_layer = self.Layers[-1]
-                    grad = following_layer.backprop(outputs)
-                    
-                    for index, layer in enumerate(reversed(self.Layers)):
-                        if not index == 0:
-                            grad = layer.backprop(following_layer)
-                            following_layer = layer
-
-                    #update gradients
-
-                #update parameters
+            pass
         
         elif self.optimizer == "MOMENTUM":
             #momentum gradient descent here
@@ -99,14 +83,17 @@ class NETWORK:
             if index < len(self.Layers) - 1:
                 x = layer.foward(x)
 
-        self.Layers[-1].foward(self.Layers[-2].weighted_sums, outputs)
+        self.Layers[-1].foward(self.Layers[-2].outputs, outputs)
 
     def foward_return(self, inputs, outputs):
         x = inputs.reshape(-1,1)
         for index, layer in enumerate(self.Layers):
             if index < len(self.Layers) - 1:
                 x = layer.foward(x)
-        predicted = self.Layers[-2].weighted_sums
+        if self.loss == "CROSS_ENTROPY":
+            predicted = softmax(self.Layers[-2].outputs)
+        else:
+            predicted = self.Layers[-2].outputs
         
         cost = self.Layers[-1].foward(predicted, outputs)
         return cost, predicted
@@ -130,7 +117,7 @@ class NETWORK:
             if index < len(self.Layers) - 1:
                 layer.update_parameters(lr)
 
-    def test(self, input_cache, output_cache):
+    def test(self, input_cache, output_cache, telementary=True):
         print("\nTEST:")
         total_cost = 0
         for index, inputs in enumerate(input_cache):
@@ -138,12 +125,15 @@ class NETWORK:
             cost, predicted = self.foward_return(inputs, outputs)
             total_cost += cost
 
-            try:
-                predicted[0][0]
-            except:
-                print(f"Predicted: {predicted[0]:.6f}    Actual: {outputs[0]:.6f}    Cost: {cost:.6f}")
-            else:
-                print(f"Predicted: {predicted[0][0]:.4f}    Actual: {outputs[0]:.6f}    Cost: {cost:.6f}")
+            if telementary:
+                try:
+                    predicted[0][0]
+                except:
+                    print(predicted, outputs.reshape(-1,1))
+                    print(f"Predicted: {predicted[0]:.6f}    Actual: {outputs[0]:.6f}    Cost: {cost:.6f}")
+                else:
+                    print(predicted, outputs.reshape(-1,1))
+                    print(f"Predicted: {predicted[0][0]:.4f}    Actual: {outputs[0]:.6f}    Cost: {cost:.6f}")
         print(f"Total Cost: {total_cost:.4f}")
 
     def feed_optimizer(self, type):
@@ -248,9 +238,9 @@ class DENSE_LAYER:
         return a
 
     def telementary_parameters(self):
-        print("\nweights: ", end="")
+        print("\nweights: ")
         print(self.weights)
-        print("\nbiases: ", end="")
+        print("\nbiases: ")
         print(self.biases)
 
     def backprop(self, following_layer):
@@ -282,21 +272,28 @@ class COST_LAYER:
         self.type = "Cost"
         self.num_outputs = 0
 
-    def foward(self, inputs, outputs):
+    def foward(self, inputs, actual):
         self.predicted = inputs
         c = None
         if self.cost == "MEAN_SQUARED_ERROR":
-            c = np.sum((outputs - inputs) ** 2)
+            c = np.sum((actual.reshape(-1,1) - inputs) ** 2)
         elif self.cost == "CROSS_ENTROPY":
-            c = cross_entropy(outputs, inputs)
+            # c = cross_entropy(actual.reshape(-1,1), inputs)
+            pass
         self.outputs = c
         return c
 
-    def backprop(self, outputs):
+    def backprop(self, actual):
         if self.cost == "MEAN_SQUARED_ERROR":
-            self.deltas = 2 * (self.predicted - outputs)
+            self.deltas = 2 * (self.predicted - actual.reshape(-1,1))
         elif self.cost == "CROSS_ENTROPY":
+            # self.deltas = self.predicted - actual.reshape(-1,1)
             pass
+
+def num_to_array(integer):
+    array = np.zeros(10)
+    array[integer] += 1
+    return array
 
 def array_extender(array):
     new_array = np.array([[array[0]]])
@@ -316,27 +313,34 @@ def architecture(size, loss, activation_type):
     return Layers
 
 def softmax(matrix):
-    mat = np.exp(matrix)
-    sum = np.sum(mat)
-    return mat * (1 / sum)
+    shiftx = matrix - np.max(matrix)
+    mat = np.exp(shiftx)
+    return mat * (1 / np.sum(mat))
 
 def cross_entropy(matrix_p, matrix_q):
-    if (matrix_p.shape != matrix_q.shape):
+    if not matrix_p.shape == matrix_q.shape:
+        print(matrix_p, matrix_q)
         return False
 
     mat = np.multiply(matrix_p, np.log(matrix_q))
-    return -np.sum(mat)
+    return np.maximum(-np.sum(mat), 1000)
 
 def draw_mnist_digit(image_list):
     for x in range(28):
-        print("|", end = "")
+        print("", end = "")
         for y in range(28):
-            char = image_list[y + 28 * x]
-            if char > 0:
-                    print("0 ", end = "")
+            char = image_list[y + 28 * x] / max(image_list) * 4
+            if char < 1:
+                col_char = "⬛"
+            elif char < 2:
+                col_char = "🔳"
+            elif char < 3:
+                col_char = "🔲"
             else:
-                print("  ", end = "")
-        print("|")
+                col_char = "⬜"
+
+            print(f"{col_char}", end="")
+        print("")
 
 start = time.perf_counter()
 print("\n---------------RUNNING---------------\n\n\n\n\n")
