@@ -1,6 +1,6 @@
 #Neural Network
 #Stoicastic gradient descent
-#version 1.4.6
+#version 1.4.7
 
 import numpy as np # noqa: I001
 import cupy as cp
@@ -11,38 +11,41 @@ from mnist import MNIST
 def main():
     
 
-    # net.desmos_format1D()
+    
 
     #y = 5x -2 
     
 
-    mndata = MNIST('mnist')
+    # mndata = MNIST('mnist')
 
-    training_images, training_labels = mndata.load_training()
-    # testing_images, testing_labels = mndata.load_testing()
+    # training_images, training_labels = mndata.load_training()
+    # # testing_images, testing_labels = mndata.load_testing()
 
-    index = len(training_labels) - 1
-    index = np.random.randint(0,index)
-    draw_mnist_digit(training_images[index])
-    print(training_labels[index], "num")
+    # index = len(training_labels) - 1
+    # index = np.random.randint(0,index)
+    # draw_mnist_digit(training_images[index])
+    # print(training_labels[index], "num")
     # print(num_to_array(training_labels[9999]), "arrayed num")
 
     # print(np.asarray(training_labels).size)
 
     # array = np.eye(2, 11)
+    input_cache = np.array([[0],[1],[2],[3],[-1],[-2],[-3]], dtype=float)
+    output_cache = input_cache ** 3
 
-    # size = (784,128,64,10)
-    # net = NETWORK(size, loss="MEAN_SQUARED_ERROR",activation="SIGMOID")
+    size = (1,8,1)
+    net = NETWORK(size, loss="MEAN_SQUARED_ERROR",activation="RELU")
 
     
-    # print(input_cache, "\n", output_cache)
+    print(input_cache, "\n", output_cache)
 
-    # net.feed_optimizer("STOICHASTIC_GRADIENT_DECSENT")
-    # # net.telementary()
-    # net.train(input_cache, output_cache, 5000, .05)
+    net.feed_optimizer("STOICHASTIC_GRADIENT_DECSENT")
+    # net.telementary()
+    net.train(input_cache, output_cache)
 
     # # net.telementary()
-    # net.test(input_cache, output_cache)
+    net.test(input_cache, output_cache)
+    net.desmos_format1D()
 
 class NETWORK:
     #Values represent default config
@@ -51,7 +54,7 @@ class NETWORK:
         self.Layers = architecture(size, loss, activation)
         self.activation_function = activation
 
-    def train(self, input_cache, output_cache, epochs=1000, lr=0.01):
+    def train(self, input_cache, output_cache, epochs=10000, lr=0.05):
         if self.optimizer == "STOICHASTIC_GRADIENT_DECSENT":
             for epoch in range(epochs):
                 for index in range(len(input_cache)):
@@ -119,6 +122,8 @@ class NETWORK:
 
     def test(self, input_cache, output_cache, telementary=True):
         print("\nTEST:")
+        print(self.Layers)
+        self.telementary()
         total_cost = 0
         for index, inputs in enumerate(input_cache):
             outputs = output_cache[index]
@@ -246,21 +251,22 @@ class DENSE_LAYER:
     def backprop(self, following_layer):
         aft_deltas = following_layer.deltas
         #update
-        if not following_layer.type == "Cost":
-            partial_derivative = None
-            if self.activation == "RELU":
-                partial_derivative = (self.weighted_sums > 0).astype(dtype=float)
-            elif self.activation == "SIGMOID":
-                partial_derivative = self.outputs * ( 1 - self.outputs)
-            elif self.activation == "TANH":
-                partial_derivative = 1 - np.tanh(self.weighted_sums) ** 2
-            elif self.activation == "NONE":
-                partial_derivative = 1
+        # partial_derivative = None
+        if self.activation == "RELU":
+            partial_derivative = (self.weighted_sums > 0).astype(dtype=float)
+        elif self.activation == "SIGMOID":
+            partial_derivative = self.outputs * (1 - self.outputs)
+        elif self.activation == "TANH":
+            partial_derivative = 1 - np.tanh(self.weighted_sums) ** 2
+        elif self.activation == "NONE":
+            partial_derivative = 1
 
+        if not following_layer.type == "Cost":
             aft_weights = following_layer.weights
-            self.deltas = np.transpose(aft_weights) @ aft_deltas * partial_derivative
+            print(np.transpose(aft_weights).shape, aft_deltas.shape, partial_derivative.shape)
+            self.deltas = np.transpose(aft_weights) @ aft_deltas * partial_derivative     
         else:
-            self.deltas = aft_deltas
+            self.deltas = aft_deltas * partial_derivative
         
     def update_parameters(self, lr):
         self.biases = self.biases - lr * self.deltas
@@ -295,12 +301,8 @@ def num_to_array(integer):
     array[integer] += 1
     return array
 
-def array_extender(array):
-    new_array = np.array([[array[0]]])
-    for index, i in enumerate(array):
-        if not index == 0:
-            new_array = np.concatenate((new_array,np.array([[i]])))
-    return new_array
+def input_format2D(list):
+    pass
 
 def normalize(array):
     return array / np.max(array)
