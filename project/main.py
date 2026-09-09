@@ -3,10 +3,10 @@
 #version 1.4.7
 
 import numpy as np # noqa: I001
-import cupy as cp
+#import cupy as cp
 import time
 import string
-from mnist import MNIST
+#from mnist import MNIST
 
 def main():
     
