@@ -1,15 +1,16 @@
 #Neural Network
 #Stoicastic gradient descent
-#version 1.4.7
+#version 1.4.9
 
 import numpy as np # noqa: I001
 #import cupy as cp
 import time
 import string
-#from mnist import MNIST
+# from mnist import MNIST
 
 def main():
-    
+    #Gradients don't explode because code is wrong, your just wrong
+    #(adjust learning rate)
 
     
 
@@ -29,19 +30,18 @@ def main():
 
     # print(np.asarray(training_labels).size)
 
-    # array = np.eye(2, 11)
-    input_cache = np.array([[0],[1],[2],[3],[-1],[-2],[-3]], dtype=float)
-    output_cache = input_cache ** 3
+    input_cache = np.array([[0,0],[0,1],[1,0],[1,1]], dtype=float)
+    output_cache = np.array([[1],[0],[0],[0]], dtype=float)
 
-    size = (1,8,1)
-    net = NETWORK(size, loss="MEAN_SQUARED_ERROR",activation="RELU")
+    size = (2,5,1)
+    net = NETWORK(size, loss="BINARY_CROSS_ENTROPY",activation="SIGMOID", IAFLL=True)
 
     
     print(input_cache, "\n", output_cache)
 
     net.feed_optimizer("STOICHASTIC_GRADIENT_DECSENT")
     # net.telementary()
-    net.train(input_cache, output_cache)
+    net.train(input_cache, output_cache, 10000, 0.05)
 
     # # net.telementary()
     net.test(input_cache, output_cache)
@@ -49,12 +49,13 @@ def main():
 
 class NETWORK:
     #Values represent default config
-    def __init__(self, size=(1,1), loss="MEAN_SQUARED_ERROR", activation="NONE"):
+    def __init__(self, size=(1,1), loss="MEAN_SQUARED_ERROR", activation="NONE", IAFLL=False):
         self.loss = loss
         self.Layers = architecture(size, loss, activation)
         self.activation_function = activation
+        self.Include_activation_for_last = IAFLL
 
-    def train(self, input_cache, output_cache, epochs=10000, lr=0.05):
+    def train(self, input_cache, output_cache, epochs=1000, lr=0.05):
         if self.optimizer == "STOICHASTIC_GRADIENT_DECSENT":
             for epoch in range(epochs):
                 for index in range(len(input_cache)):
@@ -86,17 +87,23 @@ class NETWORK:
             if index < len(self.Layers) - 1:
                 x = layer.foward(x)
 
-        self.Layers[-1].foward(self.Layers[-2].outputs, outputs)
+        if self.Include_activation_for_last:
+            self.Layers[-1].foward(self.Layers[-2].outputs, outputs)
+        else:
+            self.Layers[-1].foward(self.Layers[-2].weighted_sums, outputs)
 
     def foward_return(self, inputs, outputs):
         x = inputs.reshape(-1,1)
         for index, layer in enumerate(self.Layers):
             if index < len(self.Layers) - 1:
                 x = layer.foward(x)
-        if self.loss == "CROSS_ENTROPY":
-            predicted = softmax(self.Layers[-2].outputs)
-        else:
+
+        predicted = None
+        #insert softmax logic here
+        if self.Include_activation_for_last:
             predicted = self.Layers[-2].outputs
+        else:
+            predicted = self.Layers[-2].weighetd_sums
         
         cost = self.Layers[-1].foward(predicted, outputs)
         return cost, predicted
@@ -112,7 +119,7 @@ class NETWORK:
         
         for index, layer in enumerate(reversed(self.Layers)):
             if not index == 0:
-                layer.backprop(following_layer)
+                layer.backprop(following_layer, self.Include_activation_for_last)
                 following_layer = layer
 
     def update_parameters(self, lr):
@@ -123,7 +130,6 @@ class NETWORK:
     def test(self, input_cache, output_cache, telementary=True):
         print("\nTEST:")
         print(self.Layers)
-        self.telementary()
         total_cost = 0
         for index, inputs in enumerate(input_cache):
             outputs = output_cache[index]
@@ -134,10 +140,8 @@ class NETWORK:
                 try:
                     predicted[0][0]
                 except:
-                    print(predicted, outputs.reshape(-1,1))
                     print(f"Predicted: {predicted[0]:.6f}    Actual: {outputs[0]:.6f}    Cost: {cost:.6f}")
                 else:
-                    print(predicted, outputs.reshape(-1,1))
                     print(f"Predicted: {predicted[0][0]:.4f}    Actual: {outputs[0]:.6f}    Cost: {cost:.6f}")
         print(f"Total Cost: {total_cost:.4f}")
 
@@ -162,6 +166,8 @@ class NETWORK:
             print("\n******Desmos has too little functions to represent network******")
             return
 
+        print("\nDESMOS COPY PASTE BELOW:", end="")
+
         func = []
         prev_func = []
 
@@ -179,25 +185,26 @@ class NETWORK:
         for index, layer in enumerate(self.Layers):
             temp = []
             if (not layer.type == "Cost") and (index == 0):
-                for index, weight in enumerate(layer.weights):
+                for i, weight in enumerate(layer.weights):
                     func.append(abc[0])
                     temp.append(abc[0])
                     abc.pop(0)
                     m = weight[0]
-                    b = layer.biases[index][0]
+                    b = layer.biases[i][0]
 
+                    
                     if b >= 0:
                         print(f"{func[-1]}({input})={func[0]}({m:.5f}{input}+{b:.5f})")
                     else:
                         print(f"{func[-1]}({input})={func[0]}({m:.5f}{input}{b:.5f})")
                 prev_func.append(temp)
             elif not layer.type == "Cost":
-                for index, weight in enumerate(layer.weights):
+                for i, weight in enumerate(layer.weights):
                     func.append(abc[0])
                     temp.append(abc[0])
                     abc.pop(0)
 
-                    b = layer.biases[index][0]
+                    b = layer.biases[i][0]
                     equation = ""
                     for i, m in enumerate(weight):
                         if m >= 0:
@@ -205,9 +212,15 @@ class NETWORK:
                         else:
                             equation += f"{m:.5f}{prev_func[index - 1][i]}({input})"
                     if b >= 0:
-                        print(f"{func[-1]}({input})={equation}+{b:.5f}")
+                        if index == len(self.Layers) - 2 and not self.Include_activation_for_last:
+                            print(f"{func[-1]}({input})={equation}+{b:.5f}")
+                        else:
+                            print(f"{func[-1]}({input})={func[0]}({equation}+{b:.5f})")
                     else:
-                        print(f"{func[-1]}({input})={equation}{b:.5f}")
+                        if index == len(self.Layers) - 2 and not self.Include_activation_for_last:
+                            print(f"{func[-1]}({input})={equation}{b:.5f}")
+                        else:
+                            print(f"{func[-1]}({input})={func[0]}({equation}{b:.5f})")
                 prev_func.append(temp)
 
     def number_of_nuerons(self):
@@ -248,7 +261,7 @@ class DENSE_LAYER:
         print("\nbiases: ")
         print(self.biases)
 
-    def backprop(self, following_layer):
+    def backprop(self, following_layer, IAFLL):
         aft_deltas = following_layer.deltas
         #update
         # partial_derivative = None
@@ -263,10 +276,12 @@ class DENSE_LAYER:
 
         if not following_layer.type == "Cost":
             aft_weights = following_layer.weights
-            print(np.transpose(aft_weights).shape, aft_deltas.shape, partial_derivative.shape)
             self.deltas = np.transpose(aft_weights) @ aft_deltas * partial_derivative     
         else:
-            self.deltas = aft_deltas * partial_derivative
+            if IAFLL:
+                self.deltas = aft_deltas * partial_derivative
+            else:
+                self.deltas = aft_deltas
         
     def update_parameters(self, lr):
         self.biases = self.biases - lr * self.deltas
@@ -283,18 +298,16 @@ class COST_LAYER:
         c = None
         if self.cost == "MEAN_SQUARED_ERROR":
             c = np.sum((actual.reshape(-1,1) - inputs) ** 2)
-        elif self.cost == "CROSS_ENTROPY":
-            # c = cross_entropy(actual.reshape(-1,1), inputs)
-            pass
+        elif self.cost == "BINARY_CROSS_ENTROPY":
+            c = binary_cross_entropy(inputs, actual.reshape(-1,1))
         self.outputs = c
         return c
 
     def backprop(self, actual):
         if self.cost == "MEAN_SQUARED_ERROR":
             self.deltas = 2 * (self.predicted - actual.reshape(-1,1))
-        elif self.cost == "CROSS_ENTROPY":
-            # self.deltas = self.predicted - actual.reshape(-1,1)
-            pass
+        elif self.cost == "BINARY_CROSS_ENTROPY":
+            self.deltas = -1 * (actual.reshape(-1,1) / self.predicted - (1-actual.reshape(-1,1))/(1-self.predicted))
 
 def num_to_array(integer):
     array = np.zeros(10)
@@ -321,11 +334,19 @@ def softmax(matrix):
 
 def cross_entropy(matrix_p, matrix_q):
     if not matrix_p.shape == matrix_q.shape:
-        print(matrix_p, matrix_q)
+        print("Cross Entopy shape mismatch")
         return False
 
     mat = np.multiply(matrix_p, np.log(matrix_q))
-    return np.maximum(-np.sum(mat), 1000)
+    return np.minimum(-np.sum(mat), 1000)
+
+def binary_cross_entropy(matrix_p, matrix_q):
+    if not matrix_p.shape == matrix_q.shape:
+        print("Cross Entopy shape mismatch")
+        return False
+
+    mat = matrix_q * np.log(matrix_p) + (1 - matrix_q) * np.log((1 - matrix_p))
+    return np.minimum(-np.sum(mat), 1000)
 
 def draw_mnist_digit(image_list):
     for x in range(28):
