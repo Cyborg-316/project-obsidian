@@ -1,6 +1,6 @@
 #Neural Network
 #Stoicastic gradient descent
-#version 1.5.0
+#version 1.5.1
 
 import numpy as np # noqa: I001
 #import cupy as cp
@@ -8,10 +8,14 @@ import time
 import string
 from mnist import MNIST
 
+#to do:
+#optimize import for data, its taking 30s
+#add softmax for better accuracy
+
 def main():
     #Gradients don't explode because code is wrong, your just wrong
     #(adjust learning rate)
-    
+    time_at_start = time.perf_counter()
 
 
     #Importing mnist dataset
@@ -35,20 +39,22 @@ def main():
 
 
     #init network as object
-    size = (784,128,10)
-    net = NETWORK(size, loss="BINARY_CROSS_ENTROPY",activation="SIGMOID", IAFLL=True)
+    size = (784,128,64,10)
+    net = NETWORK(size, loss="BINARY_CROSS_ENTROPY",activation="TANH", IAFLL=True)
 
     
-    print(input_cache.shape, "\n", output_cache.shape, "\n", output_cache)
+    print(input_cache.size, "\n", output_cache.size)
     #train network
     net.feed_optimizer("STOICHASTIC_GRADIENT_DECSENT")
-    net.train(input_cache, output_cache, 1, 0.0001)
+    net.train(time_at_start, input_cache, output_cache, 10, 0.0005)
 
 
     #test YIPE
-    net.test(input_cache, output_cache, telementary=False)
+    net.test(input_cache, output_cache, telementary=True)
 
-
+    your_number = np.array([[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 51, 61.2, 12.24, 2.448, 0.49, 0.098, 0.02, 0.004, 0.001, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 51, 173.4, 148.92, 32.232, 6.936, 1.485, 0.317, 0.067, 0.014, 0.003, 0.001, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 61.2, 199.92, 171.768, 40.8, 9.547, 2.206, 0.505, 0.114, 0.026, 0.006, 0.001, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 63.24, 205.632, 177.48, 43.656, 10.641, 2.569, 0.615, 0.146, 0.034, 0.008, 0.002, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 63.648, 206.856, 178.867, 44.505, 11.029, 2.72, 0.667, 0.163, 0.039, 0.009, 0.002, 0.001, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 114.73, 217.317, 181.237, 45.148, 11.235, 2.791, 0.692, 0.171, 0.042, 0.01, 0.003, 0.001, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 51, 186.146, 233.693, 184.986, 46.027, 11.452, 2.849, 0.708, 0.176, 0.044, 0.011, 0.003, 0.001, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 61.2, 202.469, 240.232, 187.044, 46.614, 11.613, 2.892, 0.72, 0.179, 0.045, 0.011, 0.003, 0.001, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 63.24, 206.142, 242.275, 136.864, 36.696, 9.662, 2.511, 0.646, 0.165, 0.042, 0.011, 0.003, 0.001, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 63.648, 206.958, 191.847, 65.742, 20.488, 6.03, 1.708, 0.471, 0.127, 0.034, 0.009, 0.002, 0.001, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 63.73, 207.138, 181.797, 49.508, 13.999, 4.006, 1.143, 0.323, 0.09, 0.025, 0.007, 0.002, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 63.746, 207.177, 179.795, 45.86, 11.972, 3.196, 0.868, 0.238, 0.066, 0.018, 0.005, 0.001, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 63.749, 207.185, 179.396, 45.051, 11.405, 2.92, 0.758, 0.199, 0.053, 0.014, 0.004, 0.001, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 63.75, 156.187, 118.117, 32.634, 8.808, 2.346, 0.621, 0.164, 0.043, 0.012, 0.003, 0.001, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 12.75, 33.787, 30.381, 12.603, 4.282, 1.326, 0.389, 0.111, 0.031, 0.008, 0.002, 0.001, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2.55, 7.267, 7.53, 4.027, 1.662, 0.597, 0.197, 0.062, 0.018, 0.005, 0.002, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.51, 1.555, 1.817, 1.169, 0.566, 0.233, 0.086, 0.03, 0.01, 0.003, 0.001, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.102, 0.331, 0.43, 0.32, 0.177, 0.082, 0.034, 0.013, 0.004, 0.001, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.02, 0.07, 0.1, 0.084, 0.052, 0.027, 0.012, 0.005, 0.002, 0.001, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.004, 0.015, 0.023, 0.021, 0.015, 0.008, 0.004, 0.002, 0.001, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.001, 0.003, 0.005, 0.005, 0.004, 0.002, 0.001, 0.001, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.001, 0.001, 0.001, 0.001, 0.001, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]], dtype=float)
+    your_output = np.array([num_to_array(7)])
+    net.test(your_number, your_output, telementary=True)
 
     # net.desmos_format1D()
 
@@ -60,8 +66,8 @@ class NETWORK:
         self.activation_function = activation
         self.Include_activation_for_last = IAFLL
 
-    def train(self, input_cache, output_cache, epochs=1000, lr=0.05):
-        print("---------------TRAINING--------------")
+    def train(self, time_at_start, input_cache, output_cache, epochs=1000, lr=0.05):
+        print(f"---------TRAINING-AT--{(time_at_start - time.perf_counter()):.6f}---------")
         if self.optimizer == "STOICHASTIC_GRADIENT_DECSENT":
             for epoch in range(epochs):
                 for index in range(len(input_cache)):
@@ -135,7 +141,6 @@ class NETWORK:
 
     def test(self, input_cache, output_cache, telementary=True):
         print("\nTEST:")
-        print(self.Layers)
         total_cost = 0
         best_case_index = 0
         worst_case_index = 0
@@ -150,32 +155,43 @@ class NETWORK:
                 best_case_cost = cost
                 worst_case_cost = cost
 
-            if worst_case_cost > cost:
+            if worst_case_cost < cost:
                 worst_case_index = index
                 worst_case_cost = cost
-            if best_case_cost < cost:
+            if best_case_cost > cost:
                 best_case_index = index
                 best_case_cost = cost
 
         if telementary:
+            if worst_case_index == best_case_index:
+                outputs = output_cache[worst_case_index]
+                inputs = input_cache[worst_case_index]
+                cost, predicted = self.foward_return(inputs, outputs)
 
-            outputs = output_cache[worst_case_index]
-            inputs = input_cache[worst_case_index]
-            cost, predicted = self.foward_return(inputs, outputs)
+                print("Predicted:\n", predicted)
+                print("Actual:\n", outputs.reshape(-1,1))
 
-            print("Worst Case Predicted:\n", predicted)
-            print("Worst Case Actual:\n", outputs.reshape(-1,1))
+                print(f"Cost: {total_cost:.4f}")
+            else:
+                outputs = output_cache[worst_case_index]
+                inputs = input_cache[worst_case_index]
+                cost, predicted = self.foward_return(inputs, outputs)
 
-            outputs = output_cache[best_case_index]
-            inputs = input_cache[best_case_index]
-            cost, predicted = self.foward_return(inputs, outputs)
+                print("Worst Case Predicted:\n", predicted)
+                print("Worst Case Actual:\n", outputs.reshape(-1,1))
 
-            print("Best Case Predicted:\n", predicted)
-            print("Best Case Actual:\n", outputs.reshape(-1,1))
+                draw_mnist_digit(input_cache[worst_case_index])
 
+                outputs = output_cache[best_case_index]
+                inputs = input_cache[best_case_index]
+                cost, predicted = self.foward_return(inputs, outputs)
 
+                print("Best Case Predicted:\n", predicted)
+                print("Best Case Actual:\n", outputs.reshape(-1,1))
 
-        print(f"Total Cost: {total_cost:.4f}\nWorst Case: {worst_case_cost:.6f}\nBest Case: {best_case_cost:.6f}")
+                draw_mnist_digit(input_cache[best_case_index])
+
+                print(f"Total Cost: {total_cost:.4f}\nWorst Case: {worst_case_cost:.6f}\nBest Case: {best_case_cost:.6f}")
 
     def feed_optimizer(self, type):
         if type == "STOICHASTIC_GRADIENT_DECSENT":
@@ -332,6 +348,8 @@ class COST_LAYER:
             c = np.sum((actual.reshape(-1,1) - inputs) ** 2)
         elif self.cost == "BINARY_CROSS_ENTROPY":
             c = binary_cross_entropy(inputs, actual.reshape(-1,1))
+        elif self.cost == "BINARY_CROSS_ENTROPY_AND_SOFTMAX":
+            #softmax equations ere
         self.outputs = c
         return c
 
@@ -340,7 +358,9 @@ class COST_LAYER:
             self.deltas = 2 * (self.predicted - actual.reshape(-1,1))
         elif self.cost == "BINARY_CROSS_ENTROPY":
             self.deltas = -1 * (actual.reshape(-1,1) / self.predicted - (1-actual.reshape(-1,1))/(1-self.predicted))
-
+        elif self.cost == "BINARY_CROSS_ENTROPY_AND_SOFTMAX":
+            #softmax equations ere
+        
 def num_to_array(integer):
     array = np.zeros(10)
     array[integer] += 1
@@ -398,7 +418,7 @@ def draw_mnist_digit(image_list):
         print("")
 
 start = time.perf_counter()
-print("\n---------------RUNNING---------------\n\n\n\n\n")
+print("\n---------------RUNNING---------------\n")
 main()
 end = time.perf_counter()
 print(f"\n-----FINISHED--IN--{(end - start):.9f}s------\n")
