@@ -1,51 +1,56 @@
 #Neural Network
 #Stoicastic gradient descent
-#version 1.4.9
+#version 1.5.0
 
 import numpy as np # noqa: I001
 #import cupy as cp
 import time
 import string
-# from mnist import MNIST
+from mnist import MNIST
 
 def main():
     #Gradients don't explode because code is wrong, your just wrong
     #(adjust learning rate)
-
     
 
-    #y = 5x -2 
+
+    #Importing mnist dataset
+    mndata = MNIST('mnist')
+
+    training_images, training_labels = mndata.load_training()
+    testing_images, testing_labels = mndata.load_testing()
+
     
+    
+    input_cache = np.empty((1,784))
+    output_cache = np.empty((1,10))
+    for i in range(int(len(training_images)/10)):
+        input =  np.array([training_images[i]])
+        output = np.array([num_to_array(training_labels[i])])
+        input_cache = np.vstack((input_cache, input), dtype=float)
+        output_cache = np.vstack((output_cache, output))
+        # draw_mnist_digit(training_images[i])
+    input_cache = np.delete(input_cache, 0, axis=0)   
+    output_cache = np.delete(output_cache, 0, axis=0)
 
-    # mndata = MNIST('mnist')
 
-    # training_images, training_labels = mndata.load_training()
-    # # testing_images, testing_labels = mndata.load_testing()
-
-    # index = len(training_labels) - 1
-    # index = np.random.randint(0,index)
-    # draw_mnist_digit(training_images[index])
-    # print(training_labels[index], "num")
-    # print(num_to_array(training_labels[9999]), "arrayed num")
-
-    # print(np.asarray(training_labels).size)
-
-    input_cache = np.array([[0,0],[0,1],[1,0],[1,1]], dtype=float)
-    output_cache = np.array([[1],[0],[0],[0]], dtype=float)
-
-    size = (2,5,1)
+    #init network as object
+    size = (784,128,10)
     net = NETWORK(size, loss="BINARY_CROSS_ENTROPY",activation="SIGMOID", IAFLL=True)
 
     
-    print(input_cache, "\n", output_cache)
-
+    print(input_cache.shape, "\n", output_cache.shape, "\n", output_cache)
+    #train network
     net.feed_optimizer("STOICHASTIC_GRADIENT_DECSENT")
-    # net.telementary()
-    net.train(input_cache, output_cache, 10000, 0.05)
+    net.train(input_cache, output_cache, 1, 0.0001)
 
-    # # net.telementary()
-    net.test(input_cache, output_cache)
-    net.desmos_format1D()
+
+    #test YIPE
+    net.test(input_cache, output_cache, telementary=False)
+
+
+
+    # net.desmos_format1D()
 
 class NETWORK:
     #Values represent default config
@@ -56,6 +61,7 @@ class NETWORK:
         self.Include_activation_for_last = IAFLL
 
     def train(self, input_cache, output_cache, epochs=1000, lr=0.05):
+        print("---------------TRAINING--------------")
         if self.optimizer == "STOICHASTIC_GRADIENT_DECSENT":
             for epoch in range(epochs):
                 for index in range(len(input_cache)):
@@ -131,19 +137,45 @@ class NETWORK:
         print("\nTEST:")
         print(self.Layers)
         total_cost = 0
+        best_case_index = 0
+        worst_case_index = 0
+        best_case_cost = 1000
+        worst_case_cost = 1000
         for index, inputs in enumerate(input_cache):
             outputs = output_cache[index]
             cost, predicted = self.foward_return(inputs, outputs)
             total_cost += cost
 
-            if telementary:
-                try:
-                    predicted[0][0]
-                except:
-                    print(f"Predicted: {predicted[0]:.6f}    Actual: {outputs[0]:.6f}    Cost: {cost:.6f}")
-                else:
-                    print(f"Predicted: {predicted[0][0]:.4f}    Actual: {outputs[0]:.6f}    Cost: {cost:.6f}")
-        print(f"Total Cost: {total_cost:.4f}")
+            if index == 0:
+                best_case_cost = cost
+                worst_case_cost = cost
+
+            if worst_case_cost > cost:
+                worst_case_index = index
+                worst_case_cost = cost
+            if best_case_cost < cost:
+                best_case_index = index
+                best_case_cost = cost
+
+        if telementary:
+
+            outputs = output_cache[worst_case_index]
+            inputs = input_cache[worst_case_index]
+            cost, predicted = self.foward_return(inputs, outputs)
+
+            print("Worst Case Predicted:\n", predicted)
+            print("Worst Case Actual:\n", outputs.reshape(-1,1))
+
+            outputs = output_cache[best_case_index]
+            inputs = input_cache[best_case_index]
+            cost, predicted = self.foward_return(inputs, outputs)
+
+            print("Best Case Predicted:\n", predicted)
+            print("Best Case Actual:\n", outputs.reshape(-1,1))
+
+
+
+        print(f"Total Cost: {total_cost:.4f}\nWorst Case: {worst_case_cost:.6f}\nBest Case: {best_case_cost:.6f}")
 
     def feed_optimizer(self, type):
         if type == "STOICHASTIC_GRADIENT_DECSENT":
