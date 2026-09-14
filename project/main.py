@@ -1,6 +1,6 @@
 #Neural Network
 #Stoicastic gradient descent
-#version 1.5.3
+#version 1.5.4
 
 import numpy as np # noqa: I001
 #import cupy as cp
@@ -9,6 +9,7 @@ import string
 from mnist import MNIST
 
 #to do:
+#add normalize func
 #add network exporter and importer
 # * save good runs of the exporter to another file (txt)
 
@@ -24,14 +25,14 @@ def main():
     training_images, training_labels = mndata.load_training()
     testing_images, testing_labels = mndata.load_testing()
 
-    input_cache = training_images
+    input_cache = training_images / max(training_images[0])
     output_cache = array_to_array(training_labels)
-    test_input_cache = testing_images
+    test_input_cache = testing_images / max(testing_images[0])
     test_output_cache = array_to_array(testing_labels)
 
 
     #init network as object
-    size = (784,128,64,32,10)
+    size = (784,128,64,10)
     net = NETWORK(size, loss="BINARY_CROSS_ENTROPY_AND_SOFTMAX",activation="TANH")
 
     #train network
@@ -267,6 +268,13 @@ class NETWORK:
         for layer in self.Layers:
             num_nuerons += layer.num_outputs
         return num_nuerons
+
+    def export_parameters(self):
+        pass
+
+    def import_parameters(self):
+        #same format as export parameters
+        pass
 
 class DENSE_LAYER:
     def __init__(self, num_inputs, num_outputs, activation_type):
