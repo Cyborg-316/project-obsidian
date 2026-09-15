@@ -1,6 +1,6 @@
 #Neural Network
 #Stoicastic gradient descent
-#version 1.5.5
+#version 1.5.5.0
 
 import numpy as np # noqa: I001
 #import cupy as cp
@@ -17,7 +17,7 @@ def main():
     #Gradients don't explode because code is wrong, your just wrong
     #(adjust learning rate)
     time_at_start = time.perf_counter()
-    np.set_printoptions(threshold=np.inf)
+    #np.set_printoptions(threshold=np.inf)
 
 
     #Importing mnist dataset
@@ -33,12 +33,12 @@ def main():
     #   [ 0.03279386]] -->  [-0.03881448]]
 
     #init network as object
-    size = (784,64,64,10)
+    size = (784,128,64,10)
     net = NETWORK(size, loss="BINARY_CROSS_ENTROPY_AND_SOFTMAX",activation="TANH")
 
     #train network
     net.feed_optimizer("STOICHASTIC_GRADIENT_DECSENT")
-    # net.train(time_at_start, input_cache, output_cache, 1, .00001)
+    net.train(time_at_start, input_cache, output_cache, 2, .00001)
 
     #test YIPE
     net.test(test_input_cache, test_output_cache, telementary=True)
@@ -49,8 +49,8 @@ def main():
     net.test(your_number, your_output, telementary=True)
 
     # net.desmos_format1D()
-    EXPORTER.export_parameters(net, "model_archive/model_01")
-    EXPORTER.import_parameters("model_archive/model_01")
+    #EXPORTER.export_parameters(net, "model_archive/model_01")
+    #EXPORTER.import_parameters("model_archive/model_01")
 
 class NETWORK:
     #Values represent default config
